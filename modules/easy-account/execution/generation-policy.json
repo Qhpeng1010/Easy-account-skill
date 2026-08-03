@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "policyVersion": "2026.08.02.1",
+  "policyVersion": "2026.08.03.1",
   "system": "easy-account",
   "allowedModes": ["legacy", "shadow", "page-spec-default", "page-spec-only"],
   "families": [
@@ -17,11 +17,13 @@
         "table.flat",
         "table.pagination",
         "table.status",
+        "table.switch",
         "table.amount",
         "table.stackCells",
         "table.columnSettings",
         "table.confirmAction",
         "list.modalCreate",
+        "form.tree",
         "list.pageCreate",
         "list.rowPageForm",
         "detail.drawer"

@@ -34,6 +34,8 @@
 .ea-result-module .ant-table-cell { white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
 .ea-result-module .ea-status-tag,
 .ea-drawer-detail .ea-status-tag { margin-inline-end: 0; border-radius: 2px; }
+.ea-status-switch { white-space: nowrap; }
+.ea-status-switch > span:last-child { min-width: 28px; color: var(--ea-page-text-2); }
 .ea-result-module .ea-action-column { text-align: left; white-space: nowrap; }
 .ea-result-module .ea-action-column .ant-space { justify-content: flex-start; }
 .ea-result-module .ea-action-column .ant-btn-link { padding-inline: 0; }
@@ -54,6 +56,9 @@
 .ea-table-state { display: grid; justify-items: center; gap: 8px; min-height: 160px; padding: 24px; color: var(--ea-page-text-3); }
 .ea-table-state strong { color: var(--ea-page-text-1); font-size: 14px; }
 .ea-create-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.ea-create-form-item--full { grid-column: 1 / -1; }
+.ea-permission-tree { max-height: 288px; overflow: auto; border: 1px solid var(--ea-page-border); border-radius: 4px; padding: 8px 12px; background: var(--ea-page-white); }
+.ea-permission-tree .ant-tree { background: transparent; }
 .ant-modal.ea-create-modal { max-width: calc(100vw - 32px); max-height: 80vh; padding-bottom: 0; }
 .ea-create-modal .ant-modal-content { display: flex; max-height: 80vh; border-radius: 12px; flex-direction: column; }
 .ea-create-modal .ant-modal-body { flex: 1; min-height: 0; padding-top: 20px; }

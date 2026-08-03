@@ -15,7 +15,7 @@
 
 ## 目录说明
 
-```text  
+```text
 easy-account-skill/
 ├── SKILL.md                         技能入口、路由范围和交付规则
 ├── README.md                        本说明

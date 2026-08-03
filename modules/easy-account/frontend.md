@@ -20,3 +20,4 @@
 - 不依赖外部 CDN 或远程图片。
 - Page Spec 模式下，`preview.html`、`preview-app.js`、运行时、业务 CSS、Shell 文件、品牌资产和 vendor 均是派生产物；使用 `build-easy-account-page-spec.mjs` 生成。
 - 表单、详情、结果和 Dashboard 未经对应黄金案例验证前，保持在 generation policy 的 shadow、workflow-only 或 legacy 模式。
+- 生成预览后只允许执行构建和静态完整性检查。不得启动或控制浏览器、调用 Playwright、截图或进行浏览器自动验收；预览交由业务人员自行打开并人工确认。

@@ -24,10 +24,12 @@
     Radio,
     Select,
     Space,
+    Switch,
     Table,
     Tag,
     Tabs,
     Tooltip,
+    Tree,
     Upload,
     message
   } = antd;
@@ -69,6 +71,15 @@
     const common = { id, placeholder, disabled: field.disabled, maxLength: field.maxLength };
     if (field.control === 'select') return h(Select, { ...common, allowClear: true, options: field.options || [] });
     if (field.control === 'radio') return h(Radio.Group, { id, disabled: field.disabled, options: field.options || [] });
+    if (field.control === 'tree') return h(Tree, {
+      id,
+      className: 'ea-permission-tree',
+      checkable: true,
+      selectable: false,
+      defaultExpandAll: field.defaultExpandAll !== false,
+      disabled: field.disabled,
+      treeData: field.treeData || []
+    });
     if (field.control === 'upload') return h(Upload, {
       id,
       accept: field.accept || 'image/*',
@@ -103,6 +114,7 @@
   function detailValue(field, row) {
     if (field.format === 'amount') return amount(row[field.source]);
     if (field.format === 'status') return status(row[field.source]);
+    if (Array.isArray(row[field.source])) return row[field.source].join('、') || '-';
     return row[field.source] || '-';
   }
 
@@ -131,6 +143,15 @@
     return record;
   }
 
+  function applyDisplayValues(record, fields) {
+    (fields || []).forEach((field) => {
+      if (!field.displayKey || !Array.isArray(field.options)) return;
+      const option = field.options.find((item) => String(item.value) === String(record[field.key]));
+      if (option) record[field.displayKey] = option.label;
+    });
+    return record;
+  }
+
   function listTitle(table) {
     return table.sectionTitle || '查询列表';
   }
@@ -141,7 +162,6 @@
     const views = table.views || [];
     const primaryAction = table.primaryAction;
     const createConfig = primaryAction?.form;
-    const createSubmit = createConfig?.submit || createConfig || {};
     const [queryForm] = Form.useForm();
     const [createForm] = Form.useForm();
     const [allRows, setAllRows] = React.useState(table.rows || []);
@@ -156,12 +176,15 @@
     const [settingsOpen, setSettingsOpen] = React.useState(false);
     const [detailRow, setDetailRow] = React.useState(null);
     const [createOpen, setCreateOpen] = React.useState(false);
+    const [rowModalAction, setRowModalAction] = React.useState(null);
     const [view, setView] = React.useState('list');
     const [activeView, setActiveView] = React.useState(views[0]?.key);
     const [rowPageAction, setRowPageAction] = React.useState(null);
     const [dirty, setDirty] = React.useState(false);
     const [creating, setCreating] = React.useState(false);
     const selectedView = views.find((item) => item.key === activeView);
+    const modalFormConfig = rowModalAction?.form || createConfig;
+    const modalSubmit = modalFormConfig?.submit || modalFormConfig || {};
     const fields = selectedView?.queryFields || baseFields;
     const queryTabs = views.some((item) => Array.isArray(item.queryFields));
     const collapseThreshold = spec.list.query.collapseThreshold || 3;
@@ -221,6 +244,7 @@
       setDirty(false);
       setCreating(false);
       setCreateOpen(false);
+      setRowModalAction(null);
       setRowPageAction(null);
       setView('list');
     };
@@ -246,22 +270,32 @@
         createForm.setFields([{ name: 'projectName', errors: ['项目名称校验失败，请更换后重试'] }]);
         return;
       }
-      if (allRows.some((row) => String(row[rowKey]) === String(values[rowKey]))) {
+      if (!rowModalAction && values[rowKey] && allRows.some((row) => String(row[rowKey]) === String(values[rowKey]))) {
         const keyLabel = (createConfig?.groups || []).flatMap((group) => group.fields || []).find((field) => field.key === rowKey)?.label || rowKey;
         createForm.setFields([{ name: rowKey, errors: [`${keyLabel}已存在，请重新输入`] }]);
         return;
       }
       setCreating(true);
       window.setTimeout(() => {
-        const record = normalizeRecord(values, createConfig?.recordDefaults, table);
-        setAllRows((current) => [record, ...current]);
+        if (rowModalAction) {
+          const record = applyDisplayValues(normalizeRecord(values, rowModalAction.row, table), rowModalAction.form?.fields);
+          setAllRows((current) => current.map((row) => row[rowKey] === rowModalAction.row[rowKey] ? record : row));
+        } else {
+          const record = applyDisplayValues(normalizeRecord(values, createConfig?.recordDefaults, table), createConfig?.fields);
+          if (!record[rowKey] && createConfig?.autoIdPrefix) {
+            const nextId = Number(createConfig.autoIdStart || 0) + allRows.length + 1;
+            record[rowKey] = `${createConfig.autoIdPrefix}${String(nextId).padStart(5, '0')}`;
+          }
+          setAllRows((current) => [record, ...current]);
+        }
         setPage(1);
         setCreating(false);
         setDirty(false);
         setCreateOpen(false);
+        setRowModalAction(null);
         setView('list');
         createForm.resetFields();
-        message.success(createSubmit.successMessage || '新增成功');
+        message.success(modalSubmit.successMessage || (rowModalAction ? '编辑成功' : '新增成功'));
       }, 320);
     };
 
@@ -287,6 +321,8 @@
 
     const openCreate = () => {
       setDirty(false);
+      setRowModalAction(null);
+      createForm.resetFields();
       if ((primaryAction?.presentation || 'modal') === 'page') setView('create');
       else setCreateOpen(true);
     };
@@ -303,7 +339,27 @@
         setView('row-page-form');
         return;
       }
+      if (action.type === 'edit' && action.form) {
+        createForm.resetFields();
+        createForm.setFieldsValue(row);
+        setDirty(false);
+        setRowModalAction({ ...action, row });
+        setCreateOpen(true);
+        return;
+      }
       message.info(`${action.label}已触发`);
+    };
+
+    const toggleStatus = (column, row, checked) => {
+      const rowKey = table.rowKey;
+      const nextValue = {
+        value: checked ? (column.checkedValue || 'enabled') : (column.uncheckedValue || 'disabled'),
+        text: checked ? (column.checkedText || '启用') : (column.uncheckedText || '禁用')
+      };
+      setAllRows((current) => current.map((item) => item[rowKey] === row[rowKey]
+        ? { ...item, [column.key]: nextValue }
+        : item));
+      message.success(`${row.roleName || row[rowKey]}已${nextValue.text}`);
     };
 
     const columnSettings = h('div', { className: 'ea-column-settings' },
@@ -341,6 +397,19 @@
             ? amount
             : column.format === 'status'
               ? status
+              : column.format === 'switch'
+                ? (value, row) => {
+                    const item = value && typeof value === 'object' ? value : { value, text: value ? '启用' : '禁用' };
+                    const checked = item.value === (column.checkedValue || 'enabled') || item.value === true;
+                    return h(Space, { size: 8, className: 'ea-status-switch' },
+                      h(Switch, {
+                        size: 'small',
+                        checked,
+                        'aria-label': `${row.roleName || '当前角色'}状态：${item.text || (checked ? '启用' : '禁用')}`,
+                        onChange: (nextChecked) => toggleStatus(column, row, nextChecked)
+                      }),
+                      h('span', null, item.text || (checked ? '启用' : '禁用')));
+                  }
               : column.format === 'stack'
                 ? (_, row) => stackCell(column, row)
                 : undefined
@@ -376,10 +445,10 @@
         items: (group.fields || []).map((field) => ({ key: field.key, label: field.label, children: detailValue(field, detailRow) }))
       })))) : null) : null;
 
-    const modalFields = createConfig?.fields || [];
-    const createModal = primaryAction && (primaryAction.presentation || 'modal') === 'modal' ? h(Modal, {
+    const modalFields = modalFormConfig?.fields || [];
+    const createModal = (rowModalAction || (primaryAction && (primaryAction.presentation || 'modal') === 'modal')) ? h(Modal, {
       open: createOpen,
-      title: createConfig.title,
+      title: modalFormConfig?.title,
       centered: true,
       width: 640,
       className: 'ea-create-modal',
@@ -387,12 +456,13 @@
       destroyOnClose: true,
       onCancel: requestLeaveCreate,
       footer: [
-        h(Button, { key: 'cancel', disabled: creating, onClick: requestLeaveCreate }, createSubmit.secondaryLabel || '取消'),
-        h(Button, { key: 'submit', type: 'primary', loading: creating, onClick: () => createForm.submit() }, createSubmit.primaryLabel)
+        h(Button, { key: 'cancel', disabled: creating, onClick: requestLeaveCreate }, modalSubmit.secondaryLabel || '取消'),
+        h(Button, { key: 'submit', type: 'primary', loading: creating, onClick: () => createForm.submit() }, modalSubmit.primaryLabel || '保存')
       ]
     }, h(Form, {
       form: createForm,
       layout: 'vertical',
+      initialValues: createConfig?.initialValues || {},
       onValuesChange: () => setDirty(true),
       onFinish: createRecord,
       onFinishFailed: onCreateFailed,
@@ -401,6 +471,9 @@
       key: field.key,
       label: field.label,
       name: field.key,
+      className: field.fullWidth ? 'ea-create-form-item--full' : undefined,
+      valuePropName: field.control === 'tree' ? 'checkedKeys' : undefined,
+      trigger: field.control === 'tree' ? 'onCheck' : undefined,
       rules: formRules(field)
     }, control(field, `form-${field.key}`)))))) : null;
 
@@ -440,6 +513,8 @@
               key: field.key,
               label: field.label,
               name: field.key,
+              valuePropName: field.control === 'tree' ? 'checkedKeys' : undefined,
+              trigger: field.control === 'tree' ? 'onCheck' : undefined,
               rules: formRules(field),
               extra: field.help
             }, control(field, `form-${field.key}`)))))),

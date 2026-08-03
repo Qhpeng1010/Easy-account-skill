@@ -14,6 +14,6 @@ Easy Account（易账通）是独立的账户与账务管理业务域。它使�
 
 ## Execution Boundary
 
-当前使用 `page-spec-shadow`。`modules/easy-account/shell/` 是唯一的固定框架层，负责导航、多标签、内容工作区、页脚、品牌资产与本地 vendor；业务 Page Spec 只能挂载到其内容插槽，不能重新实现 Shell。普通查询列表可生成独立的 Easy Account Page Spec 候选，并通过本域固定壳层、渲染器和派生产物完整性检查；页面视觉与交互由业务人员人工验收，其余页面族仍保留在 shadow、workflow-only 或 legacy 边界。
+当前使用 `page-spec-shadow`。`modules/easy-account/shell/` 是唯一的固定框架层，负责导航、多标签、内容工作区、页脚、品牌资产与本地 vendor；业务 Page Spec 只能挂载到其内容插槽，不能重新实现 Shell。普通查询列表可生成独立的 Easy Account Page Spec 候选，并通过本域固定壳层、渲染器和派生产物静态完整性检查；不得触发浏览器、Playwright、截图或自动化交互验收，页面视觉与交互由业务人员人工验收，其余页面族仍保留在 shadow、workflow-only 或 legacy 边界。
 
 不加载 Boss Ledger 的 Shell，也不引用 Boss Ledger 的 Logo、vendor、规则或验证器。每个 Page Spec Change 只编辑 `page-spec.json`，其余预览文件由 `build-easy-account-page-spec.mjs` 生成。
