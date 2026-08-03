@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yeepay.local/schemas/easy-account-page-spec-v1.json",
+  "title": "Easy Account Page Spec",
+  "type": "object",
+  "required": ["schemaVersion", "metadata", "ui", "content"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "metadata": {
+      "type": "object",
+      "required": ["changeId", "pageName", "family", "templateId", "ruleRefs"],
+      "properties": {
+        "changeId": { "type": "string", "pattern": "^[0-9]{8}-[a-z0-9-]+$" },
+        "pageName": { "type": "string", "minLength": 1 },
+        "family": { "enum": ["list", "form", "detail", "result"] },
+        "templateId": { "type": "string", "pattern": "^(list\\.account-query|form\\.(modal|drawer|page)|detail\\.record|result\\.workflow)$" },
+        "request": { "type": "string" },
+        "ruleRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^EA-(VIS|TPL|INT)-[0-9]{3}$" } },
+        "assumptions": { "type": "array", "items": { "type": "string" } },
+        "selectionReason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "ui": {
+      "type": "object",
+      "required": ["system", "runtime", "rendererVersion"],
+      "properties": {
+        "system": { "const": "easy-account" },
+        "runtime": { "const": "easy-account-page-spec" },
+        "rendererVersion": { "const": 1 }
+      },
+      "additionalProperties": false
+    },
+    "shell": { "type": "object" },
+    "content": {
+      "type": "object",
+      "required": ["capabilities"],
+      "properties": { "capabilities": { "type": "array", "uniqueItems": true, "items": { "type": "string" } } },
+      "additionalProperties": false
+    },
+    "list": { "type": "object" },
+    "form": { "type": "object" },
+    "detail": { "type": "object" },
+    "result": { "type": "object" },
+    "states": { "type": "object" }
+  }
+}

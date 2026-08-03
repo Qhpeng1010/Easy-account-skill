@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "policyVersion": "2026.08.02.1",
+  "system": "easy-account",
+  "allowedModes": ["legacy", "shadow", "page-spec-default", "page-spec-only"],
+  "families": [
+    {
+      "id": "list",
+      "intents": ["query-list"],
+      "availability": "available",
+      "mode": "shadow",
+      "ruleRefs": ["EA-TPL-001", "EA-TPL-003", "EA-TPL-004", "EA-TPL-005", "EA-TPL-006", "EA-INT-002", "EA-INT-004", "EA-INT-005"],
+      "capabilities": [
+        "query.basic",
+        "query.advanced",
+        "query.viewFields",
+        "table.flat",
+        "table.pagination",
+        "table.status",
+        "table.amount",
+        "table.stackCells",
+        "table.columnSettings",
+        "table.confirmAction",
+        "list.modalCreate",
+        "list.pageCreate",
+        "list.rowPageForm",
+        "detail.drawer"
+      ]
+    },
+    {
+      "id": "form",
+      "intents": ["form", "modal-form", "drawer-form"],
+      "availability": "available",
+      "mode": "shadow",
+      "ruleRefs": ["EA-TPL-001", "EA-TPL-006", "EA-TPL-007", "EA-TPL-010", "EA-INT-003", "EA-INT-005"],
+      "capabilities": ["form.simple", "form.groups", "form.steps", "form.stickyActions", "form.review"]
+    },
+    {
+      "id": "detail",
+      "intents": ["detail"],
+      "availability": "available",
+      "mode": "shadow",
+      "ruleRefs": ["EA-TPL-001", "EA-TPL-005", "EA-TPL-008", "EA-TPL-010", "EA-INT-004", "EA-INT-005"],
+      "capabilities": ["detail.groups", "detail.metrics", "detail.embeddedTable"]
+    },
+    {
+      "id": "result",
+      "intents": ["result"],
+      "availability": "workflow-only",
+      "mode": "legacy",
+      "ruleRefs": ["EA-TPL-001", "EA-TPL-008", "EA-TPL-011", "EA-INT-003"],
+      "capabilities": ["result.basic", "result.summary"]
+    },
+    {
+      "id": "dashboard",
+      "intents": ["dashboard"],
+      "availability": "pending",
+      "mode": "legacy",
+      "ruleRefs": ["EA-TPL-001", "EA-TPL-009", "EA-TPL-011"],
+      "capabilities": []
+    }
+  ],
+  "validatedCombinations": [
+    {
+      "id": "list.account-query",
+      "family": "list",
+      "capabilities": ["query.basic", "table.flat", "table.pagination", "table.status", "table.amount"],
+      "ruleRefs": ["EA-TPL-001", "EA-TPL-003", "EA-TPL-004", "EA-INT-002", "EA-VIS-008"]
+    },
+    {
+      "id": "list.column-settings",
+      "family": "list",
+      "capabilities": ["query.basic", "table.flat", "table.pagination", "table.columnSettings"],
+      "ruleRefs": ["EA-TPL-004", "EA-INT-007"]
+    },
+    {
+      "id": "list.context-actions",
+      "family": "list",
+      "capabilities": ["query.basic", "table.flat", "table.pagination", "table.status", "table.amount", "table.columnSettings", "list.modalCreate", "detail.drawer"],
+      "ruleRefs": ["EA-TPL-001", "EA-TPL-003", "EA-TPL-004", "EA-TPL-005", "EA-TPL-006", "EA-INT-002", "EA-INT-004"]
+    },
+    {
+      "id": "list.page-create-detail",
+      "family": "list",
+      "capabilities": ["query.basic", "table.flat", "table.pagination", "table.status", "table.amount", "table.columnSettings", "list.pageCreate", "detail.drawer"],
+      "ruleRefs": ["EA-VIS-012", "EA-TPL-003", "EA-TPL-004", "EA-TPL-005", "EA-TPL-007", "EA-TPL-013", "EA-INT-002", "EA-INT-003", "EA-INT-009", "EA-INT-010"]
+    },
+    {
+      "id": "list.account-subject-workflow",
+      "family": "list",
+      "capabilities": ["query.advanced", "query.viewFields", "table.flat", "table.pagination", "table.status", "table.stackCells", "list.rowPageForm"],
+      "ruleRefs": ["EA-TPL-003", "EA-TPL-004", "EA-TPL-007", "EA-INT-002", "EA-INT-003", "EA-INT-004"]
+    },
+    {
+      "id": "form.grouped",
+      "family": "form",
+      "capabilities": ["form.groups", "form.stickyActions"],
+      "ruleRefs": ["EA-TPL-007", "EA-TPL-010", "EA-INT-003"]
+    },
+    {
+      "id": "detail.grouped",
+      "family": "detail",
+      "capabilities": ["detail.groups"],
+      "ruleRefs": ["EA-TPL-005", "EA-TPL-008", "EA-INT-004"]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "module": "easy-account",
+  "implementationMode": "page-spec-shadow",
+  "adapter": {
+    "execution": {
+      "policy": "modules/easy-account/execution/generation-policy.json",
+      "schema": "modules/easy-account/execution/page-spec.schema.json",
+      "shell": {
+        "root": "modules/easy-account/shell",
+        "runtime": "modules/easy-account/shell/shell-runtime.js",
+        "stylesheet": "modules/easy-account/shell/shell.css",
+        "contentStylesheet": "modules/easy-account/shell/content-base.css",
+        "config": "modules/easy-account/shell/shell-config.example.js"
+      },
+      "coreContext": "modules/easy-account/execution/context-packs/core.md",
+      "familyContexts": {
+        "list": "modules/easy-account/execution/context-packs/list.md",
+        "form": "modules/easy-account/execution/context-packs/form.md",
+        "detail": "modules/easy-account/execution/context-packs/detail.md",
+        "result": "modules/easy-account/execution/context-packs/result.md"
+      },
+      "scaffoldCommand": "node scripts/scaffold-easy-account-page-spec.mjs changes/{change-id}",
+      "buildCommand": "node scripts/build-easy-account-page-spec.mjs changes/{change-id}/page-spec.json"
+    },
+    "resources": {
+      "requirement": [
+        "modules/shared/product.md",
+        "modules/easy-account/business-rules.md"
+      ],
+      "design": [
+        "modules/easy-account/director-rules/01-visual-constitution.md"
+      ],
+      "template": [
+        "modules/easy-account/director-rules/02-template-application-rules.md",
+        "modules/easy-account/director-rules/03-interaction-acceptance-rules.md"
+      ],
+      "generate": [
+        "modules/easy-account/frontend.md",
+        "modules/shared/templates/html-preview.md"
+      ],
+      "review": [
+        "modules/easy-account/business-rules.md",
+        "modules/easy-account/director-rules/01-visual-constitution.md",
+        "modules/easy-account/director-rules/02-template-application-rules.md",
+        "modules/easy-account/director-rules/03-interaction-acceptance-rules.md"
+      ]
+    },
+    "commands": {}
+  },
+  "intents": [
+    {
+      "id": "query-list",
+      "pageType": "query-list",
+      "executionFamily": "list",
+      "signals": ["查询列表", "查询", "列表", "记录"],
+      "templateId": "list.account-query"
+    },
+    {
+      "id": "dashboard",
+      "pageType": "dashboard",
+      "executionFamily": "dashboard",
+      "signals": ["dashboard", "仪表盘", "数据首页", "业务概览"],
+      "templateId": "dashboard.overview"
+    },
+    {
+      "id": "modal-form",
+      "pageType": "modal-form",
+      "executionFamily": "form",
+      "signals": ["modal", "弹窗表单", "弹窗新增", "弹窗编辑"],
+      "templateId": "form.modal"
+    },
+    {
+      "id": "drawer-form",
+      "pageType": "drawer-form",
+      "executionFamily": "form",
+      "signals": ["drawer", "抽屉表单", "抽屉新增", "抽屉编辑"],
+      "templateId": "form.drawer"
+    },
+    {
+      "id": "form",
+      "pageType": "form",
+      "executionFamily": "form",
+      "signals": ["表单", "新增", "新建", "编辑"],
+      "templateId": "form.page"
+    },
+    {
+      "id": "detail",
+      "pageType": "detail",
+      "executionFamily": "detail",
+      "signals": ["详情页", "详情", "记录查看"],
+      "templateId": "detail.record"
+    },
+    {
+      "id": "result",
+      "pageType": "result",
+      "executionFamily": "result",
+      "signals": ["结果页", "成功页", "失败页", "处理结果"],
+      "templateId": "result.workflow"
+    }
+  ]
+}

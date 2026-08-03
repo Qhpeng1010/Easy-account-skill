@@ -1,0 +1,4 @@
+interface:
+  display_name: "易账通页面技能"
+  short_description: "易账通业务人员专用的账户后台页面生成、设计与评审技能"
+  default_prompt: "使用 $easy-account-skill 处理易账通页面需求并生成可评审预览。"

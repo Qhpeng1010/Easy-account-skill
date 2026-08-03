@@ -1,0 +1,13 @@
+# Easy Account List Context
+
+- Choose `query.basic` for up to six independent query fields; `query.advanced` remains shadow until a golden case proves expansion and dependent filters.
+- Use a `12px` outer content inset and two white sibling modules: query conditions and result table. Each module has `16px` inner padding, an `8px` radius and a stable `16px` gap.
+- Query actions are right-aligned at `8px` gaps in the final grid column: reset, query, then expand/collapse. The expand/collapse label precedes its icon, which is the rightmost control; its left padding is `8px` and right padding is `0`.
+- A result toolbar with category Tabs keeps the Ant Design default Tab height, reserves `8px` above the Tabs and the default `16px` below it (`70px` total), and hides the Tabs navigation gray divider line. A standard title toolbar remains `32px` high.
+- When business categories change the query fields or query semantics, render Ant Design Tabs at the top of the query module, above the category-specific fields; keep the result module as a standard titled Table and do not repeat Tabs above it. Only when categories share one query schema may Tabs replace the list title. Switching categories returns pagination to page 1; preserve filters for a shared schema and clear incompatible fields for different schemas.
+- Table states must cover loading, empty, error and permission-denied. Amount cells include currency. Every status cell uses an Ant Design Tag with explicit text and a semantic color; never render a Badge, standalone dot or color-only status.
+- Every standard Table includes column settings as an icon-only tool with the accessible label “列设置”; it may hide business columns but never the operations column. Confirmed row actions must explain the affected account and resulting state.
+- The operations column width follows its visible actions and must not leave excessive trailing blank space.
+- The result toolbar title defaults to “查询列表”; a `table.sectionTitle` value is an explicit requirement override. Table headers and cells must show complete labels and values, wrapping within the configured column width instead of truncating with ellipses. Keep only operations and compact status controls on one line when needed.
+- Table pagination uses a left/right split: the left side shows the result count (`共 X 条`), and the right side uses Ant Design Pagination with page navigation, a page-size selector, and the available additional-page controls. Changing page size resets to page 1; on narrow screens the two sides stack without overlap.
+- `list.modalCreate` may add a compact create Modal when it preserves the list context; `detail.drawer` may open read-only account details when the displayed information has a clear boundary.
