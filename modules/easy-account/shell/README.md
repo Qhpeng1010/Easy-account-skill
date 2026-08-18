@@ -1,6 +1,6 @@
 # 易通账 Easy Account Shell
 
-该文件包按 Figma 节点 `29:4610` 的框架层重新实现，适用于 Yee账通 PC 管理后台页面。默认预览只展示 Shell，不注入业务内容。
+该文件包按 Figma 节点 `29:4610` 的框架层重新实现，适用于 Yee账通 PC 管理后台页面。默认框架预览保留一组最小一、二级菜单、一个标签和白色内容占位面，用于确认 Shell 效果，不注入业务内容。
 
 ## 文件职责
 
@@ -37,10 +37,14 @@ python3 -m http.server 8080
 
 访问 `http://localhost:8080/preview.template.html`。
 
-## 多标签能力
+## 菜单与多标签能力
 
+- `menuCatalog` 仅保留完整产品目录作为匹配参考，不直接渲染。
+- 直接打开纯 Shell 预览时，默认 `menu` 和 `tabs` 保留一组最小可见示例，仅用于框架验收。
+- Page Spec 构建器只将当前需求声明的页面投影为可见 `menu` 和 `tabs`。
 - 点击标签切换激活态，并触发 `easyaccount:tabchange`。
 - 点击关闭按钮关闭标签，并触发 `easyaccount:tabclose`。
+- 点击菜单触发 `easyaccount:menuselect` 和可选 `onMenuSelect`；已打开的页面会同时激活对应标签。
 - 固定标签不能关闭，当前标签关闭后自动激活左侧相邻标签。
 - 键盘 `←` / `→` 切换标签，`Delete` 关闭当前标签。
 - 通过 `contentByTab` 或单个标签的 `content` 字段挂载不同业务内容。
@@ -48,7 +52,7 @@ python3 -m http.server 8080
 
 ## 接入方式
 
-1. 修改 `shell-config.example.js` 中的标签、导航和账号信息。
+1. 通过 Page Spec 声明当前页的 `primaryNav` 和 `sideNav`；不直接把 `menuCatalog` 当作可见菜单。
 2. 在业务脚本中创建 DOM 节点。
 3. 调用 `EasyAccountShell.mount({ content })` 挂载默认业务内容；React 业务内容可在返回的 `contentSlot` 中创建 Root。
 4. 框架规则只写入 `shell.css`，页面专属样式写入独立业务 CSS。

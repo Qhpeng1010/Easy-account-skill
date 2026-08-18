@@ -7,6 +7,23 @@ description: 面向易账通业务人员生成、设计、实现、更新和评�
 
 这是易账通的独立页面交付入口。用户只需描述业务目标、使用角色、字段、操作和状态；技能负责选择受支持的页面形式，生成可追溯的 Change 和可直接打开的预览。
 
+## 调用模式
+
+请求开头可以使用以下快捷命令；命令后的文字作为原始业务需求，不得改写或丢弃：
+
+| 命令 | 模式 |
+| --- | --- |
+| `/easy-account:prd` | 按基础产品部标准格式产出需求方案与需求记录。 |
+| `/easy-account:design` | 产出页面设计，能力允许时生成预览。 |
+| `/easy-account:full` | 完成需求、设计、实现、预览和静态检查。 |
+| `/easy-account:fast` | 尝试已登记配方；不匹配时回退到受控自然语言生成。 |
+
+未使用快捷命令时，继续执行本技能原有的受控自然语言页面生成工作流；统一策略解析器会在简单页面使用 v1 兼容适配器，在命中已登记组合配方时使用组合式 Page Spec。快捷命令只在请求第一个非空白 Token 完整匹配时生效；未知的 `/easy-account:*` 命令必须报告支持列表，不得回退。命令契约与解析入口分别位于 `modules/easy-account/execution/command-contract.json` 和 `scripts/dispatch-easy-account-command.mjs`。
+
+`natural`、`prd`、`design` 和 `full` 已开放；`fast` 仍为仅契约状态，接入配方前不得声称完成快速交付。处理 `/easy-account:prd` 时必须读取 `modules/easy-account/product/prd-standard.md`，产物固定为 `requirement.md`，不得自行省略模板章节或编造缺失信息。处理显式模式时还必须读取 `modules/easy-account/execution/mode-workflows.md` 并严格执行分发结果中的 `prepareCommand`、阶段资源和 `finalizeCommand`。
+
+默认自然语言隔离是硬边界：`natural-generation` 不读取 PRD 标准或快捷模式规则，不运行模式准备/最终器，不创建 `mode-state.json`，仍只使用原有五阶段资源和 Page Spec 脚手架、构建命令。新增快捷模式不得给默认路径增加配方分类、文档校验或文件写入。
+
 ## 适用范围
 
 - 易账通账户、账务、余额、冻结/解冻、调账、对账和操作日志相关后台页面。
@@ -17,23 +34,27 @@ description: 面向易账通业务人员生成、设计、实现、更新和评�
 
 ## 工作流程
 
-1. 读取 `modules/easy-account/DOMAIN.md`，再按当前任务阶段读取对应的导演规则、业务规则和执行上下文；不要加载其他业务系统的规则、Shell 或主题。
-2. 为新页面创建 `changes/YYYYMMDD-功能名称/`，写入需求、设计、规则读取记录和唯一可编辑的 `page-spec.json`。已有 Change 直接沿用原目录，不创建重复 Change。
-3. 使用固定脚本生成预览：
+1. 先运行一次 `node scripts/dispatch-easy-account-command.mjs --request "<原始请求>"`。返回 `natural-generation` 时执行以下原有工作流；返回已开放的 `mode-selected` 时选择 Change、运行 `prepareCommand`、按返回阶段生成可编辑产物，再运行 `finalizeCommand`。返回未开放模式时只报告当前状态。
+2. 读取 `modules/easy-account/DOMAIN.md`，再按当前任务阶段读取对应的导演规则、业务规则和执行上下文；涉及新页面组合时额外读取 `modules/easy-account/execution/capability-model/capability-model.md` 及其机器可读契约；不要加载其他业务系统的规则、Shell 或主题。
+3. 为新页面创建 `changes/YYYYMMDD-功能名称/`，写入需求、设计、规则读取记录和唯一可编辑的 `page-spec.json`。组合式页面可使用 `page-composition.json`，先运行结构校验；只有校验结果为 `preview-ready` 才能运行组合式构建器。已有 Change 直接沿用原目录，不创建重复 Change。
+4. 使用固定脚本生成预览：
 
    ```bash
    node scripts/scaffold-easy-account-page-spec.mjs changes/{change-id}
    node scripts/build-easy-account-page-spec.mjs changes/{change-id}/page-spec.json
    ```
 
-4. `page-spec.json` 是唯一编辑源；`preview.html`、`preview-app.js`、业务 CSS、Shell 文件、品牌资产和 vendor 都是派生产物，不手工修改。
-5. 构建成功后停止在预览交付：只运行构建和静态完整性检查，不启动或控制浏览器，不调用 Playwright、截图或浏览器自动化进行验收。提供预览地址后，由业务人员独立完成人工验收；Agent 不等待、复核或代替人工验收。
+5. `page-spec.json` 是唯一编辑源；`preview.html`、`preview-app.js`、业务 CSS、Shell 文件、品牌资产和 vendor 都是派生产物，不手工修改。
+6. 构建成功后停止在预览交付：只运行构建和静态完整性检查，不启动或控制浏览器，不调用 Playwright、截图或浏览器自动化进行验收。提供预览地址后，由业务人员独立完成人工验收；Agent 不等待、复核或代替人工验收。
 
 ## 规则边界
 
 - `modules/easy-account/director-rules/` 是视觉、页面方案和交互验收的唯一设计决策来源。
 - `modules/easy-account/execution/generation-policy.json` 决定页面家族和能力是否开放；规则存在不代表能力已开放。
+- `scripts/lib/easy-account-capability-policy.mjs` 负责统一策略解析：简单请求走 `legacy-adapter`，命中 recipe 的请求走组合式 Page Spec，未登记组合进入能力缺口。
+- `modules/easy-account/execution/capability-model/` 定义组合式页面的骨架、区域、能力、数据绑定和组合规则；其中 `model-only` 或 `declared-only` 能力不得宣称为可交付预览。
 - `modules/easy-account/shell/` 是固定框架层，业务页面只能挂载到内容插槽，不能重绘导航、多标签、页脚或侧栏。
+- Shell 中可见的一级菜单、二级菜单和顶部标签必须由当前用户需求及实际生成页面投影得到；不得把完整产品目录或示例标签默认渲染到单页预览。
 - 不引用 Boss Ledger 的 Shell、Logo、vendor、主题 CSS 或规则。
 - 不依赖外部 CDN 或远程图片；预览必须使用本技能内的品牌资产和本地 vendor。
 
@@ -43,6 +64,8 @@ description: 面向易账通业务人员生成、设计、实现、更新和评�
 - 组件与前端约定：`modules/easy-account/components.md`、`modules/easy-account/frontend.md`
 - 视觉与交互：`modules/easy-account/director-rules/`
 - 生成契约：`modules/easy-account/execution/page-spec.schema.json`
+- 组合式生成契约：`modules/easy-account/execution/capability-model/page-composition.schema.json`、`data-binding.schema.json`
+- 组合式运行时：`modules/easy-account/execution/renderer/page-composition-runtime.js`、`page-composition-business.css`
 - 页面族上下文：`modules/easy-account/execution/context-packs/`
 - 固定渲染器与壳层：`modules/easy-account/execution/renderer/`、`modules/easy-account/shell/`
 

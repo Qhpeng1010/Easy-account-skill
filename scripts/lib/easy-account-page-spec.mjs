@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
+import { assertRuleRefs, readDirectorRules, resolveDetailPresentation, resolveFormPresentation } from './easy-account-director-rules.mjs';
 
 export const ROOT = resolve(new URL('../..', import.meta.url).pathname);
 export const EXECUTION_ROOT = resolve(ROOT, 'modules/easy-account/execution');
@@ -158,20 +159,108 @@ function validateDetail(errors, spec, capabilities) {
 }
 */
 
-export function resolveShellActiveTabId(shell = {}, shellConfig = {}) {
+function validationIssue(errors, condition, message) { if (!condition) errors.push(message); }
+
+function interactiveFields(form) {
+  const fields = Array.isArray(form?.fields) ? form.fields : Array.isArray(form?.groups)
+    ? form.groups.flatMap((group) => group.fields || [])
+    : Array.isArray(form?.steps) ? form.steps.flatMap((step) => step.fields || []) : [];
+  return fields.filter((field) => field?.interactive !== false && field?.kind !== 'display');
+}
+
+export function validatePageSpec(spec, root = process.cwd()) {
+  const errors = [];
+  const director = readDirectorRules(root);
+  validationIssue(errors, spec && typeof spec === 'object' && !Array.isArray(spec), 'Page Spec must be an object.');
+  if (!spec || typeof spec !== 'object') return { valid: false, errors, warnings: [], directorRules: director.runtimePolicy };
+  validationIssue(errors, spec.schemaVersion === 1, 'schemaVersion must be 1 for a legacy Page Spec.');
+  validationIssue(errors, spec.ui?.system === 'easy-account' && spec.ui?.runtime === 'easy-account-page-spec', 'Page Spec must use the Easy Account legacy runtime.');
+  validationIssue(errors, typeof spec.metadata?.family === 'string', 'metadata.family is required.');
+  validationIssue(errors, Array.isArray(spec.metadata?.ruleRefs) && spec.metadata.ruleRefs.length > 0, 'metadata.ruleRefs must be non-empty.');
+  const unknown = assertRuleRefs(spec.metadata?.ruleRefs, director);
+  if (unknown.length) errors.push(`metadata.ruleRefs contains unknown director rules: ${unknown.join(', ')}.`);
+  const family = spec.metadata?.family;
+  if (family === 'list') {
+    const fields = spec.list?.query?.fields || [];
+    validationIssue(errors, Array.isArray(fields) && fields.length > 0, 'list.query.fields must be a non-empty array.');
+    if (fields.length > director.runtimePolicy.query.basicMaxFields && spec.content?.capabilities?.includes('query.basic')) {
+      errors.push(`list.query.fields exceeds director rule maximum of ${director.runtimePolicy.query.basicMaxFields}.`);
+    }
+    const action = spec.list?.primaryAction;
+    if (action) {
+      const count = interactiveFields(action.form).length;
+      const expected = resolveFormPresentation(count, director.runtimePolicy);
+      validationIssue(errors, ['modal', 'drawer', 'page'].includes(action.presentation || 'modal'), 'list.primaryAction.presentation is invalid.');
+      if ((action.presentation || 'modal') !== expected) errors.push(`list.primaryAction.presentation ${action.presentation || 'modal'} conflicts with director rules; expected ${expected}.`);
+    }
+    if (spec.list?.table?.drawerDetail) validationIssue(errors, resolveDetailPresentation(director.runtimePolicy) === 'drawer', 'list detail must use the director default Drawer.');
+  } else if (family === 'form') {
+    const count = interactiveFields(spec.form).length;
+    const presentation = spec.form?.presentation || (count > director.runtimePolicy.formPresentation.drawerMaxFields ? 'page' : 'modal');
+    const expected = resolveFormPresentation(count, director.runtimePolicy);
+    if (presentation !== expected) errors.push(`form.presentation ${presentation} conflicts with director rules; expected ${expected}.`);
+  } else if (family === 'detail') {
+    validationIssue(errors, resolveDetailPresentation(director.runtimePolicy) === 'drawer' || spec.detail?.presentation === 'page', 'detail presentation must follow director rules.');
+  } else {
+    errors.push(`Unsupported page family: ${family || 'missing'}.`);
+  }
+  return { valid: errors.length === 0, errors, warnings: [], directorRules: director.runtimePolicy };
+}
+
+export function resolveShellActiveTabId(shell = {}, shellConfig = {}, fallbackId = '') {
   if (typeof shell.activeTabId === 'string' && shell.activeTabId.trim()) return shell.activeTabId;
   const groups = Array.isArray(shellConfig.menu) ? shellConfig.menu : [];
   const primaryGroup = groups.find((group) => group?.label === shell.primaryNav);
   const matchedItem = (primaryGroup?.children || []).find((item) => item?.label === shell.sideNav)
     || groups.flatMap((group) => group?.children || []).find((item) => item?.label === shell.sideNav);
   if (matchedItem?.id) return String(matchedItem.id);
+  if (fallbackId) return String(fallbackId);
   if (shellConfig.activeTabId) return String(shellConfig.activeTabId);
   return shellConfig.tabs?.[0]?.id ? String(shellConfig.tabs[0].id) : '';
 }
 
+export function projectShellMenu(pageEntries = [], shellConfig = {}) {
+  const catalog = Array.isArray(shellConfig.menuCatalog)
+    ? shellConfig.menuCatalog
+    : (Array.isArray(shellConfig.menu) ? shellConfig.menu : []);
+  const groups = [];
+
+  pageEntries.forEach((entry, index) => {
+    if (!entry?.tabId) return;
+    const navigation = entry.navigation || entry.spec?.shell || {};
+    const sideLabel = navigation.sideNav || entry.spec?.metadata?.pageName || `页面 ${index + 1}`;
+    const explicitPrimary = navigation.primaryNav;
+    const catalogGroup = catalog.find((group) => group?.label === explicitPrimary)
+      || (!explicitPrimary ? catalog.find((group) => (group?.children || []).some((item) => item?.label === sideLabel)) : undefined);
+    const primaryLabel = explicitPrimary || catalogGroup?.label || '易账通';
+    let group = groups.find((item) => item.label === primaryLabel);
+    if (!group) {
+      group = {
+        id: String(catalogGroup?.id || navigation.primaryNavId || `generated-group-${groups.length + 1}`),
+        label: primaryLabel,
+        icon: navigation.primaryNavIcon || catalogGroup?.icon || 'AppstoreOutlined',
+        open: true,
+        children: []
+      };
+      groups.push(group);
+    }
+    const catalogItem = (catalogGroup?.children || []).find((item) => item?.label === sideLabel);
+    if (!group.children.some((item) => String(item.id) === String(entry.tabId))) {
+      group.children.push({
+        ...(catalogItem || {}),
+        id: String(entry.tabId),
+        label: sideLabel,
+        active: index === 0
+      });
+    }
+  });
+
+  return groups;
+}
+
 export function generatedPreviewApp(spec) {
   const serialized = JSON.stringify(spec, null, 2).replace(/<\//g, '<\\/');
-  return `// Derived from page-spec.json. Do not edit.\n// page-spec-sha256: ${pageSpecHash(spec)}\ndocument.addEventListener('DOMContentLoaded', function () {\n  const spec = ${serialized};\n  const shellConfig = Object.assign({}, window.EASY_ACCOUNT_SHELL_CONFIG || {}, spec.shell || {});\n  const activeTabId = (${resolveShellActiveTabId.toString()})(spec.shell || {}, shellConfig);\n  const pageEntries = [{ tabId: activeTabId, spec: spec }].concat((spec.shell && spec.shell.pages || []).map(function (page) { return { tabId: page.tabId, spec: page.spec }; }));\n  const contentByTab = Object.assign({}, spec.shell && spec.shell.contentByTab || {});\n  const tabs = (shellConfig.tabs || []).map(function (tab) { return Object.assign({}, tab); });\n  pageEntries.forEach(function (page) {\n    page.root = document.createElement('div');\n    if (page.tabId) {\n      contentByTab[page.tabId] = page.root;\n      if (!tabs.some(function (tab) { return tab.id === page.tabId; })) {\n        tabs.push({ id: page.tabId, label: page.spec.metadata.pageName, closable: true });\n      }\n    }\n  });\n  const shell = window.EasyAccountShell.mount(Object.assign({}, shellConfig, { tabs: tabs, activeTabId: activeTabId, content: '', contentByTab: contentByTab }));\n  pageEntries.forEach(function (page) {\n    window.EasyAccountPageSpecRuntime.mount(page.spec, page.tabId ? page.root : shell.contentSlot);\n  });\n});\n`;
+  return `// Derived from page-spec.json. Do not edit.\n// page-spec-sha256: ${pageSpecHash(spec)}\ndocument.addEventListener('DOMContentLoaded', function () {\n  const spec = ${serialized};\n  const shellConfig = Object.assign({}, window.EASY_ACCOUNT_SHELL_CONFIG || {}, spec.shell || {});\n  const catalogConfig = Object.assign({}, shellConfig, { menu: shellConfig.menuCatalog || shellConfig.menu || [] });\n  const fallbackTabId = 'page-' + spec.metadata.changeId;\n  const activeTabId = (${resolveShellActiveTabId.toString()})(spec.shell || {}, catalogConfig, fallbackTabId);\n  const declaredPages = (spec.shell && Array.isArray(spec.shell.pages) ? spec.shell.pages : []).filter(function (page) {\n    return page && page.spec && page.spec.metadata && page.spec.ui && page.spec.content;\n  });\n  const pageEntries = [{ tabId: activeTabId, spec: spec, navigation: spec.shell || {} }].concat(declaredPages.map(function (page, index) {\n    const pageSpec = page.spec;\n    const navigation = Object.assign({}, pageSpec.shell || {}, page.navigation || {}, { primaryNav: page.primaryNav || (page.navigation && page.navigation.primaryNav) || (pageSpec.shell && pageSpec.shell.primaryNav), sideNav: page.sideNav || (page.navigation && page.navigation.sideNav) || (pageSpec.shell && pageSpec.shell.sideNav) });\n    const tabId = page.tabId || (${resolveShellActiveTabId.toString()})(navigation, catalogConfig, 'page-' + (pageSpec.metadata.changeId || (spec.metadata.changeId + '-' + (index + 2))));\n    return { tabId: tabId, spec: pageSpec, navigation: navigation };\n  }));\n  const contentByTab = {};\n  const tabs = pageEntries.filter(function (page) { return page.tabId; }).map(function (page, index) {\n    return { id: page.tabId, label: page.spec.metadata.pageName || page.navigation.sideNav || page.tabId, closable: index !== 0 };\n  });\n  const menu = (${projectShellMenu.toString()})(pageEntries, catalogConfig);\n  pageEntries.forEach(function (page) {\n    page.root = document.createElement('div');\n    if (page.tabId) contentByTab[page.tabId] = page.root;\n  });\n  const shell = window.EasyAccountShell.mount(Object.assign({}, shellConfig, { menu: menu, tabs: tabs, activeTabId: activeTabId, content: '', contentByTab: contentByTab }));\n  pageEntries.forEach(function (page) {\n    window.EasyAccountPageSpecRuntime.mount(page.spec, page.tabId ? page.root : shell.contentSlot);\n  });\n});\n`;
 }
 
 export function assertChangeSpecPath(root, specPath) {

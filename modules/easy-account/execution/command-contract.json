@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "namespace": "easy-account",
+  "prefix": "/easy-account:",
+  "parsing": {
+    "position": "request-start",
+    "caseSensitive": true,
+    "separator": "whitespace-or-end",
+    "unknownCommand": "reject",
+    "missingRequest": "clarify"
+  },
+  "defaultMode": {
+    "id": "natural",
+    "explicit": false,
+    "implementationStatus": "available",
+    "workflow": "controlled-natural-generation",
+    "description": "未使用快捷命令时，保持现有受控自然语言页面生成工作流。"
+  },
+  "commands": [
+    {
+      "id": "prd",
+      "token": "/easy-account:prd",
+      "implementationStatus": "available",
+      "description": "产出符合基础产品部标准格式的需求方案与需求记录。",
+      "primaryOutput": "requirement.md",
+      "workflow": "easy-account-prd-delivery",
+      "resources": [
+        "modules/easy-account/product/prd-standard.md"
+      ]
+    },
+    {
+      "id": "design",
+      "token": "/easy-account:design",
+      "implementationStatus": "available",
+      "description": "产出页面设计，能力允许时生成预览。",
+      "workflow": "easy-account-design-delivery"
+    },
+    {
+      "id": "full",
+      "token": "/easy-account:full",
+      "implementationStatus": "available",
+      "description": "完成需求、设计、实现、预览和静态检查。",
+      "workflow": "easy-account-full-delivery"
+    },
+    {
+      "id": "fast",
+      "token": "/easy-account:fast",
+      "implementationStatus": "contract-only",
+      "description": "尝试已登记的快速配方；不匹配时回退到受控自然语言生成。",
+      "fallbackMode": "natural"
+    }
+  ]
+}

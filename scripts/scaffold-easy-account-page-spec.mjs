@@ -21,5 +21,5 @@ const source = {
   states: { loading: true, empty: true, error: true, permissionDenied: true }
 };
 writeFileSync(resolve(target, 'page-spec.json'), `${JSON.stringify(source, null, 2)}\n`);
-writeFileSync(resolve(target, 'rules-read.md'), '# Rules Read\n\n- Easy Account Director Rules\n- Easy Account execution context\n');
+writeFileSync(resolve(target, 'rules-read.md'), `# Rules Read\n\n- modules/easy-account/DOMAIN.md\n- modules/easy-account/business-rules.md\n- modules/easy-account/director-rules/01-visual-constitution.md\n- modules/easy-account/director-rules/02-template-application-rules.md\n- modules/easy-account/director-rules/03-interaction-acceptance-rules.md\n- modules/easy-account/execution/context-packs/core.md\n- modules/easy-account/execution/context-packs/list.md\n- modules/easy-account/execution/capability-model/capability-model.md\n- modules/easy-account/execution/capability-model/capability-registry.json\n- modules/easy-account/execution/capability-model/composition-rules.json\n- modules/easy-account/execution/generation-policy.json\n`);
 console.log(`easy-account-page-spec-scaffold: pass (${changeDir})`);

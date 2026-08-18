@@ -5,20 +5,26 @@ window.EASY_ACCOUNT_SHELL_CONFIG = {
     icon: "./assets/logo.png",
   },
   user: { name: "运营账号", initials: "OU" },
-  activeTabId: "role-management",
+  // Minimal visible state for opening preview.template.html directly.
+  // Generated business previews replace menu and tabs with Page Spec entries.
+  activeTabId: "store-management",
   tabs: [
-    { id: "brand-management", label: "品牌管理", pinned: true, closable: false },
-    { id: "account-management", label: "账号管理" },
-    { id: "account-query", label: "账户查询" },
-    { id: "role-management", label: "角色管理" },
-    { id: "platform-account", label: "平台账号管理" },
-    { id: "store-management", label: "门店管理" },
-    { id: "enterprise-unit", label: "企业单位管理" },
-    { id: "supplier-management", label: "供应商管理" },
-    { id: "organization-management", label: "组织机构管理" },
-    { id: "fee-allocation", label: "费用分账" },
+    { id: "store-management", label: "门店管理", pinned: true, closable: false },
   ],
   menu: [
+    {
+      id: "enterprise-management",
+      label: "企业管理",
+      icon: "ApartmentOutlined",
+      open: true,
+      children: [
+        { id: "store-management", label: "门店管理", active: true },
+      ],
+    },
+  ],
+  // Product navigation is reference data only. The Page Spec builder projects
+  // the current request into visible menu items and tabs.
+  menuCatalog: [
     {
       id: "enterprise-management",
       label: "企业管理",

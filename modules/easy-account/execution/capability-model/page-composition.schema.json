@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yeepay.local/schemas/easy-account-page-composition-v1.json",
+  "title": "Easy Account Page Composition",
+  "type": "object",
+  "required": ["schemaVersion", "metadata", "ui", "skeleton", "regions"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 2 },
+    "metadata": {
+      "type": "object",
+      "required": ["changeId", "pageName", "ruleRefs"],
+      "additionalProperties": false,
+      "properties": {
+        "changeId": { "type": "string", "pattern": "^[0-9]{8}-[^/\\s]+$" },
+        "pageName": { "type": "string", "minLength": 1 },
+        "pageId": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9-]*$" },
+        "request": { "type": "string" },
+        "assumptions": { "type": "array", "items": { "type": "string" } },
+        "ruleRefs": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^EA-(VIS|TPL|INT)-[0-9]{3}$" } }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "required": ["system", "runtime", "rendererVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "system": { "const": "easy-account" },
+        "runtime": { "const": "easy-account-composition" },
+        "rendererVersion": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "skeleton": { "type": "string", "minLength": 1 },
+    "recipeId": { "type": "string", "minLength": 1 },
+    "regions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "capabilities"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9-]*$" },
+          "type": { "type": "string", "minLength": 1 },
+          "capabilities": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+          "config": { "type": "object", "additionalProperties": true }
+        }
+      }
+    },
+    "bindings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "data-binding.schema.json" }
+    },
+    "transitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "event", "to"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "from": { "type": "string", "minLength": 1 },
+          "event": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 },
+          "requires": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+          "bindingIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "required": ["pages"],
+      "additionalProperties": false,
+      "properties": {
+        "pages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "skeleton", "regions"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9-]*$" },
+              "label": { "type": "string", "minLength": 1 },
+              "skeleton": { "type": "string", "minLength": 1 },
+              "regions": { "type": "array", "minItems": 1 },
+              "bindings": { "type": "array" },
+              "transitions": { "type": "array" },
+              "states": { "type": "object", "additionalProperties": true }
+            }
+          }
+        }
+      }
+    },
+    "states": { "type": "object", "additionalProperties": true },
+    "shell": { "type": "object", "additionalProperties": true }
+  }
+}

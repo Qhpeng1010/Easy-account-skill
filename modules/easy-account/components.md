@@ -12,7 +12,7 @@
 - `Amount`：使用等宽数字特性，同时显示币种和口径。
 - `StatusIndicator`：图形或状态点与中文状态文本组合。
 - `Form`：支持必填、同步校验、提交中和服务端错误定位。
-- `Dialog` / `Drawer`：有明确标题、关闭方式、焦点管理和底部操作区。
+- `Dialog` / `Drawer`：有明确标题、关闭方式、焦点管理和底部操作区；Drawer 使用满高纵向布局，Header 固定、Body 独立滚动、Footer 固定吸底；Header 关闭 icon 右对齐，Body 四边 `24px` 内边距，Footer 操作位于右下角且右对齐，按钮间距为 `8px`，内容区不重复渲染 Header 标题。
 - `Result`：显示结果状态、结果说明、关键摘要和后续操作。
 
 ## Interaction Rules

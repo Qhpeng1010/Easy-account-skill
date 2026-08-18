@@ -10,7 +10,11 @@ Easy Account（易账通）是独立的账户与账务管理业务域。它使�
 
 ## Progressive Loading
 
-`domain.json` 是本业务域的唯一适配合约，声明阶段资源、页面意图、固定 Shell 和可选执行命令。路由命中后，只读取 resolver 返回的 Easy Account Markdown。
+`domain.json` 是本业务域的唯一适配合约，声明阶段资源、页面意图、固定 Shell 和可选执行命令。路由命中后，只读取 resolver 返回的 Easy Account 资源；Markdown 规则负责语义，JSON Schema/能力契约负责结构和可交付边界，渲染器与 Shell 只作为固定执行资源按阶段加载。
+
+`adapter.commands.contract` 声明快捷命令契约，`adapter.commands.dispatchCommand` 是统一分发入口。请求未以已登记的 `/easy-account:*` 开头时必须返回 `natural`，继续原有受控自然语言工作流；快捷命令不能改变业务域、Shell 或能力策略边界。
+
+`prd`、`design` 和 `full` 使用 `adapter.commands.workflow`、准备命令和最终命令。准备命令只记录显式模式与原始需求；最终命令校验模式产物并复用本域现有构建器。默认 `natural` 路径不得读取模式工作流、运行模式命令或写入模式状态。
 
 ## Execution Boundary
 

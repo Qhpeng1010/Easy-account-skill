@@ -2,7 +2,8 @@
 import { createHash } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, relative, resolve } from 'node:path';
-import { assertChangeSpecPath, generatedPreviewApp, pageSpecHash, readJson } from './lib/easy-account-page-spec.mjs';
+import { assertChangeSpecPath, generatedPreviewApp, pageSpecHash, readJson, validatePageSpec } from './lib/easy-account-page-spec.mjs';
+import { readDirectorRules } from './lib/easy-account-director-rules.mjs';
 
 const specArg = process.argv.find((arg) => arg.endsWith('page-spec.json'));
 if (!specArg) {
@@ -15,6 +16,9 @@ try {
   const specPath = assertChangeSpecPath(root, specArg);
   const changeDir = dirname(specPath);
   const spec = readJson(specPath);
+  const validation = validatePageSpec(spec, root);
+  if (!validation.valid) throw new Error(`Page Spec validation failed: ${validation.errors.join(' ')}`);
+  const runtimeSpec = { ...spec, directorPolicy: readDirectorRules(root).runtimePolicy };
   if (spec.metadata.changeId !== basename(changeDir)) throw new Error('metadata.changeId must match the Change directory name.');
   if (!existsSync(resolve(changeDir, 'rules-read.md'))) throw new Error('rules-read.md is missing.');
   mkdirSync(resolve(changeDir, 'assets'), { recursive: true });
@@ -33,7 +37,7 @@ try {
   cpSync(resolve(shellRoot, 'assets'), resolve(changeDir, 'assets'), { recursive: true });
   cpSync(resolve(shellRoot, 'vendor'), resolve(changeDir, 'vendor'), { recursive: true });
   const appPath = resolve(changeDir, 'preview-app.js');
-  writeFileSync(appPath, generatedPreviewApp(spec));
+  writeFileSync(appPath, generatedPreviewApp(runtimeSpec));
   const policy = readJson(resolve(root, 'modules/easy-account/execution/generation-policy.json'));
   const generated = Object.fromEntries([
     ['preview.html', resolve(changeDir, 'preview.html')],
@@ -41,7 +45,7 @@ try {
     ['business.css', resolve(changeDir, 'business.css')],
     ['preview-app.js', appPath]
   ].map(([name, file]) => [name, sha256(file)]));
-  writeFileSync(resolve(changeDir, 'page-spec-build.json'), `${JSON.stringify({ schemaVersion: 1, system: 'easy-account', policyVersion: policy.policyVersion, rendererVersion: spec.ui.rendererVersion, pageSpecHash: pageSpecHash(spec), generated }, null, 2)}\n`);
+  writeFileSync(resolve(changeDir, 'page-spec-build.json'), `${JSON.stringify({ schemaVersion: 1, system: 'easy-account', policyVersion: policy.policyVersion, directorRulesVersion: runtimeSpec.directorPolicy.version, rendererVersion: spec.ui.rendererVersion, pageSpecHash: pageSpecHash(spec), generated }, null, 2)}\n`);
   writeFileSync(resolve(changeDir, 'page-spec-checklist.md'), `# ${spec.metadata.pageName} Page Spec 预览\n\n- [x] 系统：Easy Account\n- [x] 页面族：${spec.metadata.family}\n- [x] 模板：${spec.metadata.templateId}\n- [x] 运行模式：shadow\n- [x] 易账通独立 Shell 与渲染器已生成\n`);
   console.log(`easy-account-page-spec-build: pass (${relative(root, specPath)})`);
   console.log(`- page spec: ${pageSpecHash(spec)}`);

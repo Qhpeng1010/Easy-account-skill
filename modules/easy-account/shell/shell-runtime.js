@@ -62,6 +62,7 @@
 
     const state = {
       tabs: normalizeTabs(config.tabs),
+      contentByTab: Object.assign({}, config.contentByTab || {}),
       activeTabId:
         String(config.activeTabId || config.tabs?.find((item) => item.active)?.id || "") ||
         String(config.tabs?.[0]?.id || "tab-1"),
@@ -139,10 +140,18 @@
             drawMenu();
           },
           onClick: ({ key }) => {
-            state.selectedMenuId = String(key);
-            drawMenu();
-            const matchingTab = state.tabs.find((tab) => tab.id === String(key));
+            const id = String(key);
+            const parent = (config.menu || []).find((group) =>
+              (group.children || []).some((child) => String(child.id || child.label) === id),
+            );
+            const item = (parent?.children || []).find(
+              (child) => String(child.id || child.label) === id,
+            );
+            const matchingTab = state.tabs.find((tab) => tab.id === id);
             if (matchingTab) activateTab(matchingTab.id);
+            const detail = { id, item, parent, opened: Boolean(matchingTab) };
+            root.dispatchEvent(new CustomEvent("easyaccount:menuselect", { detail }));
+            if (typeof config.onMenuSelect === "function") config.onMenuSelect(detail);
           },
         }),
         menuRoot,
@@ -150,7 +159,7 @@
     }
 
     function renderContent(tab) {
-      const candidate = tab?.content ?? config.contentByTab?.[tab?.id] ?? config.content;
+      const candidate = tab?.content ?? state.contentByTab[tab?.id] ?? config.content;
       contentSlot.replaceChildren();
       const resolved = typeof candidate === "function" ? candidate(tab) : candidate;
       if (resolved instanceof Node) contentSlot.append(resolved);
@@ -219,6 +228,18 @@
       root.dispatchEvent(new CustomEvent("easyaccount:tabclose", { detail: { tab } }));
     }
 
+    function openTab(tab, options) {
+      if (!tab?.id) throw new Error("EasyAccountShell: openTab requires an id");
+      const normalized = normalizeTabs([tab])[0];
+      const existing = state.tabs.find((item) => item.id === normalized.id);
+      if (tab.content !== undefined) state.contentByTab[normalized.id] = tab.content;
+      if (existing) Object.assign(existing, normalized);
+      else state.tabs.push(normalized);
+      if (options?.activate !== false) activateTab(normalized.id, options?.focusActive);
+      else drawTabs();
+      return state.tabs.find((item) => item.id === normalized.id);
+    }
+
     function toggleSidebar() {
       state.collapsed = !state.collapsed;
       shell.classList.toggle("is-sidebar-collapsed", state.collapsed);
@@ -274,6 +295,7 @@
       getActiveTab: () => state.tabs.find((tab) => tab.id === state.activeTabId),
       activateTab,
       closeTab,
+      openTab,
       toggleSidebar,
     };
   }

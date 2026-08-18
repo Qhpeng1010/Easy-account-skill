@@ -111,6 +111,24 @@
     return rules;
   }
 
+  function interactiveFormFieldCount(form) {
+    const fields = Array.isArray(form?.fields) ? form.fields : Array.isArray(form?.groups)
+      ? form.groups.flatMap((group) => group.fields || [])
+      : Array.isArray(form?.steps) ? form.steps.flatMap((step) => step.fields || []) : [];
+    return fields.filter((field) => field?.interactive !== false && field?.kind !== 'display').length;
+  }
+
+  function directorFormPresentation(spec, form, declared) {
+    if (declared) return declared;
+    const policy = spec.directorPolicy;
+    if (!policy) return 'modal';
+    const thresholds = policy.thresholds || policy.formPresentation;
+    const count = interactiveFormFieldCount(form);
+    if (count > Number(thresholds?.drawerMaxFields)) return 'page';
+    if (count > Number(thresholds?.modalMaxFields)) return 'drawer';
+    return 'modal';
+  }
+
   function detailValue(field, row) {
     if (field.format === 'amount') return amount(row[field.source]);
     if (field.format === 'status') return status(row[field.source]);
@@ -162,6 +180,7 @@
     const views = table.views || [];
     const primaryAction = table.primaryAction;
     const createConfig = primaryAction?.form;
+    const primaryPresentation = directorFormPresentation(spec, createConfig, primaryAction?.presentation);
     const [queryForm] = Form.useForm();
     const [createForm] = Form.useForm();
     const [allRows, setAllRows] = React.useState(table.rows || []);
@@ -323,7 +342,7 @@
       setDirty(false);
       setRowModalAction(null);
       createForm.resetFields();
-      if ((primaryAction?.presentation || 'modal') === 'page') setView('create');
+      if (primaryPresentation === 'page') setView('create');
       else setCreateOpen(true);
     };
 
@@ -337,6 +356,21 @@
         setDirty(false);
         setRowPageAction({ ...action, row });
         setView('row-page-form');
+        return;
+      }
+      if (action.type === 'delete') {
+        Modal.confirm({
+          title: '删除账号？',
+          content: `确认删除账号“${row.accountName || row[rowKey]}”？删除后无法恢复。`,
+          okText: '确认删除',
+          cancelText: '取消',
+          centered: true,
+          onOk: () => {
+            setAllRows((current) => current.filter((item) => item[rowKey] !== row[rowKey]));
+            setPage(1);
+            message.success('账号已删除');
+          }
+        });
         return;
       }
       if (action.type === 'edit' && action.form) {
@@ -446,19 +480,26 @@
       })))) : null) : null;
 
     const modalFields = modalFormConfig?.fields || [];
-    const createModal = (rowModalAction || (primaryAction && (primaryAction.presentation || 'modal') === 'modal')) ? h(Modal, {
+    const createModal = (rowModalAction || (primaryAction && primaryPresentation !== 'page')) ? h(primaryPresentation === 'drawer' ? Drawer : Modal, {
       open: createOpen,
       title: modalFormConfig?.title,
       centered: true,
       width: 640,
-      className: 'ea-create-modal',
-      styles: { body: { maxHeight: 'calc(80vh - 146px)', overflowY: 'auto' } },
+      className: primaryPresentation === 'drawer' ? 'ea-create-drawer' : 'ea-create-modal',
+      styles: primaryPresentation === 'drawer'
+        ? { body: { overflowY: 'auto' } }
+        : { body: { maxHeight: 'calc(80vh - 146px)', overflowY: 'auto' } },
       destroyOnClose: true,
       onCancel: requestLeaveCreate,
-      footer: [
-        h(Button, { key: 'cancel', disabled: creating, onClick: requestLeaveCreate }, modalSubmit.secondaryLabel || '取消'),
-        h(Button, { key: 'submit', type: 'primary', loading: creating, onClick: () => createForm.submit() }, modalSubmit.primaryLabel || '保存')
-      ]
+      onClose: requestLeaveCreate,
+      footer: primaryPresentation === 'drawer'
+        ? h('div', { className: 'ea-drawer-footer-actions' },
+          h(Button, { key: 'cancel', disabled: creating, onClick: requestLeaveCreate }, modalSubmit.secondaryLabel || '取消'),
+          h(Button, { key: 'submit', type: 'primary', loading: creating, onClick: () => createForm.submit() }, modalSubmit.primaryLabel || '保存'))
+        : [
+          h(Button, { key: 'cancel', disabled: creating, onClick: requestLeaveCreate }, modalSubmit.secondaryLabel || '取消'),
+          h(Button, { key: 'submit', type: 'primary', loading: creating, onClick: () => createForm.submit() }, modalSubmit.primaryLabel || '保存')
+        ]
     }, h(Form, {
       form: createForm,
       layout: 'vertical',
@@ -479,7 +520,7 @@
 
     const pageFormConfig = view === 'row-page-form' ? rowPageAction?.form : createConfig;
     const pageFormSubmit = pageFormConfig?.submit || {};
-    const pageFormVisible = (view === 'create' && primaryAction?.presentation === 'page') || view === 'row-page-form';
+    const pageFormVisible = (view === 'create' && primaryPresentation === 'page') || view === 'row-page-form';
     if (pageFormVisible && pageFormConfig) {
       return h('div', { className: 'ea-page-content ea-page-form' },
         h('div', { className: 'ea-page-form-heading' },

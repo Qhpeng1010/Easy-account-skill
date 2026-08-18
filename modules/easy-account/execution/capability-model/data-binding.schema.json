@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yeepay.local/schemas/easy-account-data-binding-v1.json",
+  "title": "Easy Account Data Binding",
+  "type": "object",
+  "required": ["id", "from", "to", "mode"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9-]*$" },
+    "from": {
+      "type": "object",
+      "required": ["scope", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "pageId": { "type": "string", "minLength": 1 },
+        "scope": { "enum": ["context", "query", "row", "form", "submission", "result"] },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "to": {
+      "type": "object",
+      "required": ["region", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "pageId": { "type": "string", "minLength": 1 },
+        "region": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 }
+      }
+    },
+    "mode": { "enum": ["initial", "filter", "submit", "result", "context"] },
+    "required": { "type": "boolean", "default": true },
+    "transform": { "enum": ["identity", "pick", "map", "aggregate"] },
+    "transformConfig": { "type": "object", "additionalProperties": true }
+  }
+}

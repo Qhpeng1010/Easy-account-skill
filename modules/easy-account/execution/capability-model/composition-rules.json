@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "modelVersion": "2026.08.18.1",
+  "system": "easy-account",
+  "skeletonRules": [
+    {
+      "skeleton": "query-workbench",
+      "allowedRegions": ["query", "summary", "table", "action", "detail-drawer"],
+      "requiredRegions": ["query", "table"],
+      "order": ["query", "summary", "table", "action"],
+      "constraints": ["summary requires query", "table is the only primary result region"]
+    },
+    {
+      "skeleton": "form-workflow",
+      "allowedRegions": ["step-form", "review", "action"],
+      "requiredRegions": ["step-form"],
+      "order": ["step-form", "review", "action"],
+      "constraints": ["review requires step-form", "action is required when submit is declared"]
+    },
+    {
+      "skeleton": "detail-workbench",
+      "allowedRegions": ["detail", "summary", "table", "action"],
+      "requiredRegions": ["detail"],
+      "order": ["summary", "detail", "table", "action"],
+      "constraints": ["embedded table must belong to detail or be explicitly linked"]
+    },
+    {
+      "skeleton": "result-workflow",
+      "allowedRegions": ["result", "action"],
+      "requiredRegions": ["result"],
+      "order": ["result", "action"],
+      "constraints": ["result must declare success, processing or failure state"]
+    }
+  ],
+  "recipes": [
+    {
+      "id": "query-summary-table",
+      "skeleton": "query-workbench",
+      "regions": ["query", "summary", "table"],
+      "capabilities": ["query.basic", "summary.metrics", "summary.aggregate", "table.flat", "table.pagination"],
+      "runtimeStatus": "implemented"
+    },
+    {
+      "id": "submission-review-result",
+      "skeletons": ["form-workflow", "result-workflow"],
+      "regions": ["step-form", "review", "result"],
+      "capabilities": ["form.steps", "form.review", "result.summary", "result.actions", "binding.submissionToResult"],
+      "runtimeStatus": "implemented"
+    },
+    {
+      "id": "list-open-tab-workflow",
+      "skeletons": ["query-workbench", "form-workflow", "result-workflow"],
+      "regions": ["query", "table", "step-form", "review", "result"],
+      "capabilities": ["navigation.openTab", "binding.rowToForm", "form.steps", "form.review", "result.summary"],
+      "runtimeStatus": "implemented"
+    }
+  ],
+  "transitions": [
+    { "id": "row-to-form-tab", "from": "query-workbench.table.rowAction", "event": "openTab", "to": "form-workflow", "requires": ["navigation.openTab", "binding.rowToForm"] },
+    { "id": "form-to-result", "from": "form-workflow.submit", "event": "submitted", "to": "result-workflow", "requires": ["binding.submissionToResult"] },
+    { "id": "result-to-source", "from": "result-workflow.action", "event": "return", "to": "query-workbench", "requires": ["navigation.openTab"] }
+  ]
+}

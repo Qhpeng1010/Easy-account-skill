@@ -2,6 +2,27 @@
   "schemaVersion": 1,
   "policyVersion": "2026.08.03.1",
   "system": "easy-account",
+  "strategyVersion": 2,
+  "strategySource": "modules/easy-account/execution/capability-model",
+  "legacyAdapter": {
+    "status": "compatible",
+    "input": "page-spec.schema.json",
+    "mapsTo": "query-workbench/form-workflow/detail-workbench/result-workflow"
+  },
+  "capabilityModel": {
+    "version": 1,
+    "status": "shadow",
+    "registry": "modules/easy-account/execution/capability-model/capability-registry.json",
+    "compositionRules": "modules/easy-account/execution/capability-model/composition-rules.json",
+    "pageCompositionSchema": "modules/easy-account/execution/capability-model/page-composition.schema.json",
+    "dataBindingSchema": "modules/easy-account/execution/capability-model/data-binding.schema.json"
+  },
+  "routing": {
+    "resolver": "scripts/lib/easy-account-capability-policy.mjs",
+    "simpleDefault": "legacy-adapter",
+    "compositionWhenRecipeMatches": true,
+    "unregisteredCombination": "capability-gap"
+  },
   "allowedModes": ["legacy", "shadow", "page-spec-default", "page-spec-only"],
   "families": [
     {

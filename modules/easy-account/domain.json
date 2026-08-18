@@ -6,6 +6,13 @@
     "execution": {
       "policy": "modules/easy-account/execution/generation-policy.json",
       "schema": "modules/easy-account/execution/page-spec.schema.json",
+      "capabilityModel": {
+        "guide": "modules/easy-account/execution/capability-model/capability-model.md",
+        "registry": "modules/easy-account/execution/capability-model/capability-registry.json",
+        "compositionRules": "modules/easy-account/execution/capability-model/composition-rules.json",
+        "pageCompositionSchema": "modules/easy-account/execution/capability-model/page-composition.schema.json",
+        "dataBindingSchema": "modules/easy-account/execution/capability-model/data-binding.schema.json"
+      },
       "shell": {
         "root": "modules/easy-account/shell",
         "runtime": "modules/easy-account/shell/shell-runtime.js",
@@ -21,7 +28,10 @@
         "result": "modules/easy-account/execution/context-packs/result.md"
       },
       "scaffoldCommand": "node scripts/scaffold-easy-account-page-spec.mjs changes/{change-id}",
-      "buildCommand": "node scripts/build-easy-account-page-spec.mjs changes/{change-id}/page-spec.json"
+      "buildCommand": "node scripts/build-easy-account-page-spec.mjs changes/{change-id}/page-spec.json",
+      "compositionScaffoldCommand": "node scripts/scaffold-easy-account-page-composition.mjs changes/{change-id}",
+      "compositionValidateCommand": "node scripts/validate-easy-account-page-composition.mjs changes/{change-id}/page-composition.json --write",
+      "compositionBuildCommand": "node scripts/build-easy-account-page-composition.mjs changes/{change-id}/page-composition.json"
     },
     "resources": {
       "requirement": [
@@ -33,7 +43,10 @@
       ],
       "template": [
         "modules/easy-account/director-rules/02-template-application-rules.md",
-        "modules/easy-account/director-rules/03-interaction-acceptance-rules.md"
+        "modules/easy-account/director-rules/03-interaction-acceptance-rules.md",
+        "modules/easy-account/execution/capability-model/capability-model.md",
+        "modules/easy-account/execution/capability-model/capability-registry.json",
+        "modules/easy-account/execution/capability-model/composition-rules.json"
       ],
       "generate": [
         "modules/easy-account/frontend.md",
@@ -46,7 +59,13 @@
         "modules/easy-account/director-rules/03-interaction-acceptance-rules.md"
       ]
     },
-    "commands": {}
+    "commands": {
+      "contract": "modules/easy-account/execution/command-contract.json",
+      "workflow": "modules/easy-account/execution/mode-workflows.md",
+      "dispatchCommand": "node scripts/dispatch-easy-account-command.mjs --request \"{request}\"",
+      "prepareModeCommand": "node scripts/prepare-easy-account-mode.mjs --mode {mode} --request \"{request}\" --change changes/{change-id}",
+      "finalizeModeCommand": "node scripts/finalize-easy-account-mode.mjs --mode {mode} --change changes/{change-id}"
+    }
   },
   "intents": [
     {

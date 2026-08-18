@@ -4,6 +4,35 @@
 
 本仓库只服务于易账通业务。
 
+## 调用模式
+
+未指定快捷命令时，继续执行现有自然语言 Page Spec 生成工作流。请求开头也可以使用：
+
+| 命令 | 目标 |
+| --- | --- |
+| `/easy-account:prd` | 按基础产品部标准格式输出需求方案和需求记录。 |
+| `/easy-account:design` | 输出页面设计，能力允许时生成预览。 |
+| `/easy-account:full` | 完成需求、设计、实现、预览和静态检查。 |
+| `/easy-account:fast` | 尝试登记配方，不匹配时回退自然语言生成。 |
+
+当前已完成命令契约、解析与统一分发入口，`prd`、`design` 和 `full` 已具备准备、阶段执行与最终校验流水线；`fast` 配方后续单独接入。统一入口可用于取得当前请求的阶段、资源、产物和命令：
+
+```bash
+node scripts/dispatch-easy-account-command.mjs --request "/easy-account:prd 账户查询需求"
+```
+
+PRD 的章节、固定表头和填写规则以 [`modules/easy-account/product/prd-standard.md`](modules/easy-account/product/prd-standard.md) 为准。
+
+显式模式的通用执行方式：
+
+```bash
+node scripts/prepare-easy-account-mode.mjs --mode prd --request "<原始需求>" --change changes/{change-id}
+# Agent 按统一入口返回的阶段和资源生成可编辑产物
+node scripts/finalize-easy-account-mode.mjs --mode prd --change changes/{change-id}
+```
+
+未使用快捷命令时不会执行上述模式脚本，也不会读取 PRD 或模式规则；原有自然语言五阶段工作流、脚手架和构建命令保持不变。
+
 ## 先从哪里看
 
 如果你是产品、设计或研发同学，建议按以下顺序了解本仓库：
@@ -12,6 +41,7 @@
 2. [导演规则](modules/easy-account/director-rules/README.md)：视觉、页面模板和交互验收的唯一设计决策来源。
 3. [能力策略](modules/easy-account/execution/generation-policy.json)：确认页面类型和组件能力是否已开放。
 4. [业务规则](modules/easy-account/business-rules.md)：了解字段、状态、权限和结果约束。
+5. [能力模型](modules/easy-account/execution/capability-model/capability-model.md)：了解组合式页面的骨架、区域、能力、绑定和组合规则。
 
 ## 目录说明
 
@@ -23,7 +53,7 @@ easy-account-skill/
 ├── modules/
 │   ├── easy-account/                易账通业务域
 │   │   ├── director-rules/          视觉、模板和交互验收规则
-│   │   ├── execution/               能力策略、Page Spec 契约、上下文和渲染器
+│   │   ├── execution/               能力策略、组合能力模型、Page Spec 契约、上下文和渲染器
 │   │   ├── shell/                   固定后台 Shell、品牌资产和本地依赖
 │   │   ├── business-rules.md        业务字段、状态和权限规则
 │   │   ├── components.md            组件使用约定
@@ -38,7 +68,9 @@ easy-account-skill/
 
 ## 当前能力
 
-页面是否可以生成，以 [`generation-policy.json`](modules/easy-account/execution/generation-policy.json) 为准，而不是仅凭规则文件是否存在。
+页面是否可以生成，以 [`generation-policy.json`](modules/easy-account/execution/generation-policy.json) 和组合能力模型为准，而不是仅凭规则文件是否存在。统一策略解析器会把简单需求适配到旧版 Page Spec，把已登记的复杂组合路由到组合式 Page Spec。
+
+组合式页面的能力模型已接入独立渲染器；注册表中的 `implemented` 能力可以构建组合式预览，`model-only` 或 `declared-only` 能力仍会进入能力缺口流程。`workflow.pages` 支持按转场懒打开新标签，并在页面之间传递声明式上下文。
 
 | 页面族 | 当前状态 | 已覆盖能力 |
 | --- | --- | --- |
@@ -58,7 +90,7 @@ easy-account-skill/
 业务需求
   -> 识别易账通业务对象、角色、字段、操作和状态
   -> 读取业务规则、导演规则与当前能力策略
-  -> 创建 Change 并填写 page-spec.json
+  -> 创建 Change 并填写 page-spec.json，或先填写 page-composition.json
   -> 固定渲染器生成预览页面
   -> 运行快速检查
   -> 业务人员人工验收
@@ -79,8 +111,10 @@ easy-account-skill/
 | 页面家族、模板选择和页面组合 | `director-rules/02-template-application-rules.md` | 已生成的页面文件 |
 | 流程、状态、风险确认和验收 | `director-rules/03-interaction-acceptance-rules.md` | 预览 HTML、CSS 和 JavaScript |
 | 单页字段、文案、数据和默认值 | 当前 Change 的 `page-spec.json` | 跨页面导演规则 |
-| 页面能力是否开放 | `execution/generation-policy.json` | 仅修改 Markdown 规则来开放能力 |
+| 页面能力是否开放 | `execution/generation-policy.json`、`execution/capability-model/` | 仅修改导演规则不能越过工程能力白名单 |
 | 导航、多标签、页脚和侧栏 | `shell/` 对应固定实现 | 单页 Page Spec |
+
+路由和渐进式加载按四层资源执行：先由 `scripts/dispatch-easy-account-command.mjs` 解析命令，再由能力策略读取导演规则和工程能力白名单；生成阶段只加载对应页面族的 `context-packs`，命中组合式时才加载组合能力模型；构建阶段才读取固定渲染器和 Shell。业务规则用于账户语义与风险约束，不能由导演规则替代。
 
 ## 如何提出一个新页面
 
@@ -127,6 +161,14 @@ node scripts/scaffold-easy-account-page-spec.mjs changes/{change-id}
 node scripts/build-easy-account-page-spec.mjs changes/{change-id}/page-spec.json
 ```
 
+创建、校验并构建组合式 Page Spec：
+
+```bash
+node scripts/scaffold-easy-account-page-composition.mjs changes/{change-id}
+node scripts/validate-easy-account-page-composition.mjs changes/{change-id}/page-composition.json --write
+node scripts/build-easy-account-page-composition.mjs changes/{change-id}/page-composition.json
+```
+
 运行 Shell 路由回归测试：
 
 ```bash
@@ -137,6 +179,18 @@ node scripts/test-easy-account-shell-routing.mjs
 
 ```text
 easy-account-shell-routing-regression: pass
+```
+
+运行能力模型契约检查：
+
+```bash
+node scripts/test-easy-account-capability-model.mjs
+```
+
+预期输出：
+
+```text
+easy-account-capability-model: pass
 ```
 
 生成后的 `preview.html` 可直接在浏览器中打开。也可以在对应目录启动静态服务器后查看：
