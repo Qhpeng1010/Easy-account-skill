@@ -33,15 +33,27 @@
     Upload,
     message
   } = antd;
-  const { ArrowLeftOutlined, CloseOutlined, DownOutlined, SettingOutlined, UpOutlined, UploadOutlined } = icons;
+  const { ArrowLeftOutlined, CloseOutlined, DownloadOutlined, DownOutlined, SettingOutlined, UpOutlined, UploadOutlined } = icons;
 
-  function amount(value) {
+  function amount(value, showCurrency = true) {
     const data = value && typeof value === 'object' ? value : { minor: String(value || '0'), currency: 'CNY' };
     const minor = String(data.minor || '0');
     const negative = minor.startsWith('-');
     const digits = (negative ? minor.slice(1) : minor).padStart(3, '0');
     const major = `${digits.slice(0, -2)}.${digits.slice(-2)}`.replace(/^0+(?=\d)/, '');
-    return h(Space, { size: 4 }, `${negative ? '-' : ''}${major}`, h('span', { className: 'ea-ant-currency' }, data.currency || 'CNY'));
+    const formatted = `${negative ? '-' : ''}${major}`;
+    return showCurrency
+      ? h(Space, { size: 4 }, formatted, h('span', { className: 'ea-ant-currency' }, data.currency || 'CNY'))
+      : formatted;
+  }
+
+  function amountColumnTitle(column) {
+    const label = String(column.label || '金额');
+    if (column.mixedCurrency === true) return label;
+    const unit = column.unit || ({ CNY: '元', USD: '美元', EUR: '欧元' }[column.currency] || column.currency || '元');
+    if (label.endsWith(`(${unit})`)) return label;
+    if (label.endsWith(`（${unit}）`)) return `${label.slice(0, -(unit.length + 2))}(${unit})`;
+    return `${label}(${unit})`;
   }
 
   function status(value) {
@@ -100,8 +112,50 @@
       const source = row[field.filterKey || field.key];
       const sourceValue = source && typeof source === 'object' ? source.value ?? source.text ?? source.minor : source;
       if (field.control === 'select') return String(sourceValue) === String(value);
+      if (field.control === 'date-range' && Array.isArray(value) && value.length === 2) {
+        const start = value[0]?.format?.('YYYY-MM-DD');
+        const end = value[1]?.format?.('YYYY-MM-DD');
+        const date = String(sourceValue || '').slice(0, 10);
+        return (!start || date >= start) && (!end || date <= end);
+      }
       return String(sourceValue || '').toLowerCase().includes(String(value).toLowerCase());
     });
+  }
+
+  function valueForCondition(value) {
+    if (value && typeof value === 'object') return value.value ?? value.text;
+    return value;
+  }
+
+  function actionVisible(action, row) {
+    const condition = action.visibleWhen;
+    if (!condition) return true;
+    const current = valueForCondition(row[condition.field]);
+    if (Array.isArray(condition.values)) return condition.values.map(String).includes(String(current));
+    return String(current) === String(condition.value);
+  }
+
+  function csvCell(value, column) {
+    let output = value;
+    if (column.format === 'amount') output = amountText(value, column.mixedCurrency === true);
+    else if (value && typeof value === 'object') output = value.text ?? value.value ?? '';
+    else if (Array.isArray(value)) output = value.join('、');
+    return `"${String(output ?? '').replaceAll('"', '""')}"`;
+  }
+
+  function amountText(value, showCurrency) {
+    const data = value && typeof value === 'object' ? value : { minor: String(value || '0'), currency: 'CNY' };
+    const minor = String(data.minor || '0');
+    const negative = minor.startsWith('-');
+    const digits = (negative ? minor.slice(1) : minor).padStart(3, '0');
+    const major = `${digits.slice(0, -2)}.${digits.slice(-2)}`.replace(/^0+(?=\d)/, '');
+    return `${negative ? '-' : ''}${major}${showCurrency ? ` ${data.currency || 'CNY'}` : ''}`;
+  }
+
+  function localDateTime() {
+    const value = new Date();
+    const part = (number) => String(number).padStart(2, '0');
+    return `${value.getFullYear()}-${part(value.getMonth() + 1)}-${part(value.getDate())} ${part(value.getHours())}:${part(value.getMinutes())}:${part(value.getSeconds())}`;
   }
 
   function formRules(field) {
@@ -183,6 +237,7 @@
     const primaryPresentation = directorFormPresentation(spec, createConfig, primaryAction?.presentation);
     const [queryForm] = Form.useForm();
     const [createForm] = Form.useForm();
+    const [confirmForm] = Form.useForm();
     const [allRows, setAllRows] = React.useState(table.rows || []);
     const [filters, setFilters] = React.useState({});
     const [loading, setLoading] = React.useState(false);
@@ -201,9 +256,12 @@
     const [rowPageAction, setRowPageAction] = React.useState(null);
     const [dirty, setDirty] = React.useState(false);
     const [creating, setCreating] = React.useState(false);
+    const [confirming, setConfirming] = React.useState(false);
+    const [confirmedAction, setConfirmedAction] = React.useState(null);
     const selectedView = views.find((item) => item.key === activeView);
     const modalFormConfig = rowModalAction?.form || createConfig;
     const modalSubmit = modalFormConfig?.submit || modalFormConfig || {};
+    const modalTitle = modalFormConfig?.title || rowModalAction?.label || primaryAction?.label || '操作';
     const fields = selectedView?.queryFields || baseFields;
     const queryTabs = views.some((item) => Array.isArray(item.queryFields));
     const collapseThreshold = spec.list.query.collapseThreshold || 3;
@@ -381,7 +439,59 @@
         setCreateOpen(true);
         return;
       }
+      if (action.type === 'confirm-status') {
+        confirmForm.resetFields();
+        setConfirmedAction({ action, row });
+        return;
+      }
       message.info(`${action.label}已触发`);
+    };
+
+    const closeConfirmedAction = () => {
+      if (confirming) return;
+      confirmForm.resetFields();
+      setConfirmedAction(null);
+    };
+
+    const submitConfirmedAction = (values) => {
+      const context = confirmedAction;
+      if (!context) return;
+      const { action, row } = context;
+      const config = action.confirm || {};
+      const nextValue = action.nextValue;
+      setConfirming(true);
+      window.setTimeout(() => {
+        setAllRows((current) => current.map((item) => item[table.rowKey] === row[table.rowKey]
+          ? {
+              ...item,
+              [action.statusField || 'status']: nextValue,
+              [action.updatedTimeField || 'updateTime']: localDateTime(),
+              lastOperationReason: values.reason
+            }
+          : item));
+        setConfirming(false);
+        setConfirmedAction(null);
+        confirmForm.resetFields();
+        message.success(config.successMessage || `${action.label}成功`);
+      }, 320);
+    };
+
+    const exportRows = (action) => {
+      const exportColumns = table.columns.filter((column) => column.key !== 'actions' && column.exportable !== false);
+      const content = [
+        exportColumns.map((column) => csvCell(column.format === 'amount' ? amountColumnTitle(column) : column.label, {})).join(','),
+        ...matchedRows.map((row) => exportColumns.map((column) => csvCell(row[column.key], column)).join(','))
+      ].join('\n');
+      const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = action.fileName || `${spec.metadata.pageName || '查询列表'}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      message.success(`已导出 ${matchedRows.length} 条记录`);
     };
 
     const toggleStatus = (column, row, checked) => {
@@ -414,21 +524,24 @@
           className: 'ea-action-column',
           onCell: () => ({ className: 'ea-action-column' }),
           fixed: 'right',
-          render: (_, row) => h(Space, { size: 12 }, ...(column.actions || []).map((action) => h(Button, {
+          render: (_, row) => h(Space, { size: 12 }, ...(column.actions || []).filter((action) => actionVisible(action, row)).map((action) => h(Button, {
             key: action.key,
             type: 'link',
             size: 'small',
+            disabled: loading || confirming,
             onClick: () => handleRowAction(action, row)
           }, action.label)))
         };
         return {
           key: column.key,
           dataIndex: column.key,
-          title: column.label,
+          title: column.format === 'amount' ? amountColumnTitle(column) : column.label,
           width: column.width,
           ellipsis: false,
+          align: column.format === 'amount' ? 'right' : undefined,
+          className: column.format === 'amount' ? 'ea-amount-column' : undefined,
           render: column.format === 'amount'
-            ? amount
+            ? (value) => amount(value, column.mixedCurrency === true)
             : column.format === 'status'
               ? status
               : column.format === 'switch'
@@ -453,8 +566,8 @@
     const emptyText = failure
       ? h('div', { className: 'ea-table-state' }, h('strong', null, '查询失败'), h('span', null, failure), h(Button, { onClick: () => runQuery(queryForm.getFieldsValue()) }, '重新查询'))
       : denied
-        ? h('div', { className: 'ea-table-state' }, h('strong', null, '暂无查询权限'), h('span', null, '请联系管理员开通当前项目范围的查询权限。'))
-        : h(Empty, { description: '暂无匹配项目' });
+        ? h('div', { className: 'ea-table-state' }, h('strong', null, '暂无查询权限'), h('span', null, table.permissionDeniedDescription || '请联系管理员开通当前数据范围的查询权限。'))
+        : h(Empty, { description: table.emptyDescription || '暂无匹配记录' });
 
     const drawer = table.drawerDetail ? h(Drawer, {
       open: Boolean(detailRow),
@@ -479,10 +592,45 @@
         items: (group.fields || []).map((field) => ({ key: field.key, label: field.label, children: detailValue(field, detailRow) }))
       })))) : null) : null;
 
+    const confirmedActionModal = confirmedAction ? h(Modal, {
+      open: true,
+      title: confirmedAction.action.confirm?.title || confirmedAction.action.label,
+      centered: true,
+      width: 560,
+      className: 'ea-confirm-action-modal',
+      destroyOnClose: true,
+      maskClosable: false,
+      closable: !confirming,
+      okText: confirmedAction.action.confirm?.okText || `确认${confirmedAction.action.label}`,
+      cancelText: '取消',
+      okButtonProps: { danger: confirmedAction.action.confirm?.danger === true, loading: confirming },
+      cancelButtonProps: { disabled: confirming },
+      onOk: () => confirmForm.submit(),
+      onCancel: closeConfirmedAction
+    },
+    h('div', { className: 'ea-confirm-action-summary' },
+      h('p', null, `${confirmedAction.action.confirm?.objectLabel || '操作对象'}：${confirmedAction.row[confirmedAction.action.confirm?.objectField || table.rowKey]}`),
+      h('p', null, confirmedAction.action.confirm?.impact || `确认后账户状态将变更为“${confirmedAction.action.nextValue?.text || '-'}”。`),
+      confirmedAction.action.confirm?.warning ? h('p', { className: 'ea-confirm-action-warning' }, confirmedAction.action.confirm.warning) : null),
+    h(Form, { form: confirmForm, layout: 'vertical', onFinish: submitConfirmedAction },
+      h(Form.Item, {
+        label: confirmedAction.action.confirm?.reasonLabel || '操作原因',
+        name: 'reason',
+        rules: [
+          { required: true, whitespace: true, message: '请填写操作原因' },
+          { min: confirmedAction.action.confirm?.reasonMinLength || 5, message: `操作原因至少填写 ${confirmedAction.action.confirm?.reasonMinLength || 5} 个字` }
+        ]
+      }, h(Input.TextArea, {
+        rows: 4,
+        maxLength: confirmedAction.action.confirm?.reasonMaxLength || 200,
+        showCount: true,
+        placeholder: confirmedAction.action.confirm?.reasonPlaceholder || '请填写本次操作原因'
+      })))) : null;
+
     const modalFields = modalFormConfig?.fields || [];
     const createModal = (rowModalAction || (primaryAction && primaryPresentation !== 'page')) ? h(primaryPresentation === 'drawer' ? Drawer : Modal, {
       open: createOpen,
-      title: modalFormConfig?.title,
+      title: modalTitle,
       centered: true,
       width: 640,
       className: primaryPresentation === 'drawer' ? 'ea-create-drawer' : 'ea-create-modal',
@@ -599,6 +747,12 @@
             onChange: changeView
           }) : h('h2', null, listTitle(table)),
           denied ? null : h('div', { className: 'ea-result-actions' },
+            ...(table.toolbarActions || []).map((action) => h(Button, {
+              key: action.key,
+              icon: action.type === 'export' && DownloadOutlined ? h(DownloadOutlined) : null,
+              disabled: loading || matchedRows.length === 0,
+              onClick: () => action.type === 'export' ? exportRows(action) : message.info(`${action.label}已触发`)
+            }, action.label)),
             primaryAction ? h(Button, { type: 'primary', onClick: openCreate }, primaryAction.label) : null,
             h(Popover, {
               open: settingsOpen,
@@ -615,6 +769,7 @@
           loading,
           locale: { emptyText },
           pagination: false,
+          size: 'middle',
           scroll: { x: table.scrollX || 1080 }
         }),
         h('div', { className: 'ea-pagination-row' },
@@ -641,7 +796,8 @@
         )
       ),
       drawer,
-      createModal);
+      createModal,
+      confirmedActionModal);
   }
 
   function Page({ spec }) {
@@ -654,8 +810,16 @@
       if (!target) throw new Error('EasyAccountPageSpecRuntime: target element not found.');
       ReactDOM.render(h(ConfigProvider, {
         theme: {
-          token: { colorPrimary: '#1E75FF', borderRadius: 4 },
-          components: { Button: { borderRadius: 6 } }
+          token: { colorPrimary: '#1E75FF', borderRadius: 6 },
+          components: {
+            Button: { borderRadius: 6 },
+            Table: {
+              cellPaddingBlockMD: 10,
+              cellPaddingInlineMD: 16,
+              headerBg: '#F5F4F5',
+              headerColor: '#606266'
+            }
+          }
         }
       }, h(Page, { spec })), target);
     }

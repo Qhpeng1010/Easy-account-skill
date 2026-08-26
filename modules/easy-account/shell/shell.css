@@ -15,6 +15,7 @@
   --ea-footer-height: 32px;
   --ea-page-padding: 12px;
   --ea-radius: 8px;
+  --ea-control-radius: 6px;
   font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
   color: var(--ea-text-1);
   background: var(--ea-bg);

@@ -2,6 +2,7 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseEasyAccountCommand, readCommandContract } from './lib/easy-account-command.mjs';
+import { resolveEasyAccountDomain } from './lib/easy-account-domain.mjs';
 import { createModeWorkflow } from './lib/easy-account-mode-workflow.mjs';
 import { createNaturalWorkflow } from './lib/easy-account-natural-workflow.mjs';
 
@@ -16,11 +17,22 @@ function dispatch(rawRequest, root = process.cwd()) {
   const contract = readCommandContract(root);
   const parsed = parseEasyAccountCommand(rawRequest, contract);
   if (parsed.status !== 'resolved') return parsed;
+  const domain = resolveEasyAccountDomain(parsed.request, root);
+  if (domain.status === 'outside-domain' || domain.status === 'clarify-target') {
+    return {
+      ...parsed,
+      status: domain.status,
+      domain,
+      reason: domain.reason,
+      question: domain.question
+    };
+  }
 
   if (parsed.mode === contract.defaultMode.id) {
     return {
       ...parsed,
       status: 'natural-generation',
+      domain,
       reason: contract.defaultMode.description,
       workflow: createNaturalWorkflow(parsed.request, root)
     };
@@ -31,6 +43,7 @@ function dispatch(rawRequest, root = process.cwd()) {
   return {
     ...parsed,
     status: 'mode-selected',
+    domain,
     reason: command.description,
     contract: command,
     ...(available ? { workflow: createModeWorkflow(parsed.mode, parsed.request, root) } : {}),

@@ -38,7 +38,7 @@
   ],
   "regions": [
     { "id": "query", "label": "查询区", "runtimeStatus": "implemented", "capabilities": ["query.basic", "query.advanced"] },
-    { "id": "summary", "label": "统计区", "runtimeStatus": "implemented", "capabilities": ["summary.metrics", "summary.aggregate", "binding.queryToSummary"] },
+    { "id": "summary", "label": "统计区", "runtimeStatus": "implemented", "capabilities": ["summary.metrics", "summary.aggregate", "summary.manage", "binding.queryToSummary"] },
     { "id": "table", "label": "结果表格", "runtimeStatus": "implemented", "capabilities": ["table.flat", "table.pagination", "table.status", "table.amount", "table.columnSettings"] },
     { "id": "action", "label": "操作区", "runtimeStatus": "implemented", "capabilities": ["action.primary", "action.secondary", "action.confirm", "navigation.openTab"] },
     { "id": "detail-drawer", "label": "详情抽屉", "runtimeStatus": "implemented", "capabilities": ["detail.drawer"] },
@@ -52,6 +52,7 @@
     { "id": "query.advanced", "kind": "query", "region": "query", "runtimeStatus": "implemented" },
     { "id": "summary.metrics", "kind": "summary", "region": "summary", "runtimeStatus": "implemented" },
     { "id": "summary.aggregate", "kind": "summary", "region": "summary", "runtimeStatus": "implemented" },
+    { "id": "summary.manage", "kind": "summary", "region": "summary", "runtimeStatus": "implemented" },
     { "id": "table.flat", "kind": "table", "region": "table", "runtimeStatus": "implemented" },
     { "id": "table.pagination", "kind": "table", "region": "table", "runtimeStatus": "implemented" },
     { "id": "table.status", "kind": "table", "region": "table", "runtimeStatus": "implemented" },

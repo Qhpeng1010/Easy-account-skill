@@ -18,14 +18,59 @@ for (const phrase of ['Header 最右侧', '`24px` 内边距', '不得重复渲�
   assert.ok(interactionRules.includes(phrase), `EA-INT-009 missing ${phrase}`);
 }
 
-const compositionPath = resolve(root, 'changes/20260818-merchant-bank-account/page-composition.json');
-const composition = JSON.parse(readFileSync(compositionPath, 'utf8'));
+const composition = {
+  schemaVersion: 2,
+  metadata: {
+    changeId: '20260826-director-composition-test',
+    pageName: '账户汇总查询',
+    ruleRefs: ['EA-TPL-001', 'EA-TPL-003', 'EA-TPL-004', 'EA-INT-002']
+  },
+  ui: { system: 'easy-account', runtime: 'easy-account-composition', rendererVersion: 1 },
+  skeleton: 'query-workbench',
+  recipeId: 'query-summary-table',
+  regions: [
+    { id: 'query', type: 'query', capabilities: ['query.basic'] },
+    { id: 'summary', type: 'summary', capabilities: ['summary.metrics', 'summary.aggregate', 'binding.queryToSummary'] },
+    { id: 'table', type: 'table', capabilities: ['table.flat', 'table.pagination'] }
+  ],
+  bindings: [{
+    id: 'query-to-summary',
+    from: { scope: 'query', path: 'filters' },
+    to: { region: 'summary', path: 'metrics' },
+    mode: 'filter',
+    transform: 'aggregate'
+  }],
+  transitions: []
+};
 const compositionResult = validatePageComposition(composition, root);
 assert.equal(compositionResult.valid, true, compositionResult.errors.join('\n'));
 assert.equal(compositionResult.directorRules.thresholds.drawerMaxFields, director.runtimePolicy.thresholds.drawerMaxFields);
 
-const legacyPath = resolve(root, 'changes/20260813-企业单位管理/page-spec.json');
-const legacy = JSON.parse(readFileSync(legacyPath, 'utf8'));
+const legacy = {
+  schemaVersion: 1,
+  metadata: {
+    changeId: '20260826-director-page-spec-test',
+    pageName: '账户查询',
+    family: 'list',
+    templateId: 'list.account-query',
+    ruleRefs: ['EA-TPL-001', 'EA-TPL-002', 'EA-INT-002'],
+    assumptions: [],
+    selectionReason: '普通账户查询列表'
+  },
+  ui: { system: 'easy-account', runtime: 'easy-account-page-spec', rendererVersion: 1 },
+  shell: { primaryNav: '账户管理', sideNav: '账户查询' },
+  content: { capabilities: ['query.basic', 'table.flat', 'table.pagination'] },
+  list: {
+    query: { fields: [{ key: 'accountNo', label: '账户号', control: 'input' }] },
+    table: {
+      rowKey: 'accountNo',
+      columns: [{ key: 'accountNo', label: '账户号' }],
+      rows: [],
+      pagination: { pageSize: 20, total: 0 }
+    }
+  },
+  states: { loading: true, empty: true, error: true, permissionDenied: true }
+};
 const legacyResult = validatePageSpec(legacy, root);
 assert.equal(legacyResult.valid, true, legacyResult.errors.join('\n'));
 assert.equal(legacyResult.directorRules.version, director.runtimePolicy.version);

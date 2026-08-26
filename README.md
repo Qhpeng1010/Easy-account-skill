@@ -148,7 +148,7 @@ changes/YYYYMMDD-功能名称/
 └── review.md                 静态检查与人工验收记录
 ```
 
-`page-spec.json` 是页面的唯一编辑源。`preview.html`、`preview-app.js`、业务 CSS、Shell 文件、品牌资产和本地 vendor 均为固定或派生产物，不应手工修改。
+`page-spec.json` 是页面的唯一编辑源。`preview.html`、`preview-app.js`、业务 CSS、Shell 文件和品牌资产均为固定或派生产物，不应手工修改；预览统一复用 `modules/easy-account/shell/vendor/` 中的本地依赖，不在每个 Change 内复制一份。
 
 `changes/` 已加入 `.gitignore`，用于本地需求与预览，不会随本仓库推送。
 

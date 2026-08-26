@@ -57,6 +57,7 @@
   ],
   "transitions": [
     { "id": "row-to-form-tab", "from": "query-workbench.table.rowAction", "event": "openTab", "to": "form-workflow", "requires": ["navigation.openTab", "binding.rowToForm"] },
+    { "id": "row-to-detail-drawer", "from": "query-workbench.table.rowAction", "event": "openDrawer", "to": "detail-workbench", "requires": ["navigation.openTab"] },
     { "id": "form-to-result", "from": "form-workflow.submit", "event": "submitted", "to": "result-workflow", "requires": ["binding.submissionToResult"] },
     { "id": "result-to-source", "from": "result-workflow.action", "event": "return", "to": "query-workbench", "requires": ["navigation.openTab"] }
   ]

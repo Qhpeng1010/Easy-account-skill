@@ -17,6 +17,6 @@
 .merchant-pagination { height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .merchant-pagination__total { flex: 0 0 auto; color: var(--ea-text-2); }
 .merchant-pagination__controls { display: flex; align-items: center; gap: 8px; }
-.merchant-page { min-width: 32px; height: 32px; border: 0; border-radius: 2px; background: transparent; cursor: pointer; }
+.merchant-page { min-width: 32px; height: 32px; border: 0; border-radius: var(--ea-control-radius); background: transparent; cursor: pointer; }
 .merchant-page.is-active { color: var(--ea-brand); background: #e8f3ff; }
 @media (max-width: 1180px) { .merchant-query { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

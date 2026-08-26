@@ -39,7 +39,68 @@
       "properties": { "capabilities": { "type": "array", "uniqueItems": true, "items": { "type": "string" } } },
       "additionalProperties": false
     },
-    "list": { "type": "object" },
+    "list": {
+      "type": "object",
+      "properties": {
+        "table": {
+          "type": "object",
+          "properties": {
+            "primaryAction": {
+              "type": "object",
+              "required": ["label", "form"],
+              "properties": {
+                "label": { "type": "string", "minLength": 1 },
+                "presentation": { "enum": ["modal", "drawer", "page"] },
+                "form": {
+                  "type": "object",
+                  "properties": { "title": { "type": "string", "minLength": 1 } }
+                }
+              },
+              "allOf": [
+                {
+                  "if": { "properties": { "presentation": { "enum": ["modal", "drawer"] } } },
+                  "then": { "properties": { "form": { "required": ["title"] } } }
+                }
+              ]
+            },
+            "columns": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "format": { "type": "string" },
+                  "unit": { "type": "string", "minLength": 1 },
+                  "currency": { "type": "string", "minLength": 1 },
+                  "mixedCurrency": { "type": "boolean" },
+                  "actions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "allOf": [
+                        {
+                          "if": { "properties": { "type": { "const": "edit" } }, "required": ["type"] },
+                          "then": {
+                            "required": ["label", "form"],
+                            "properties": {
+                              "label": { "type": "string", "minLength": 1 },
+                              "form": {
+                                "type": "object",
+                                "required": ["title"],
+                                "properties": { "title": { "type": "string", "minLength": 1 } }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "form": { "type": "object" },
     "detail": { "type": "object" },
     "result": { "type": "object" },

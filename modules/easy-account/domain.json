@@ -2,6 +2,14 @@
   "version": 1,
   "module": "easy-account",
   "implementationMode": "page-spec-shadow",
+  "routing": {
+    "canonicalName": "易账通",
+    "aliases": ["易账通", "Yee账通", "yee账通", "Easy Account", "EasyAccount", "easy-account"],
+    "caseInsensitive": true,
+    "defaultWhenProductOmitted": true,
+    "excludedProducts": ["Boss Ledger", "老板管账", "易来钱收银台", "易宝开放平台"],
+    "multipleProductBehavior": "clarify-target"
+  },
   "adapter": {
     "execution": {
       "policy": "modules/easy-account/execution/generation-policy.json",

@@ -7,9 +7,9 @@
   if (!React || !ReactDOM || !antd) throw new Error('EasyAccountCompositionRuntime requires React, ReactDOM and Ant Design.');
 
   const h = React.createElement;
-  const { Button, Checkbox, ConfigProvider, DatePicker, Descriptions, Drawer, Empty, Form, Input, Modal, Pagination, Popover, Radio, Result, Select, Space, Statistic, Steps, Table, Tag, Tabs, Tooltip, Upload } = antd;
+  const { Button, Checkbox, ConfigProvider, DatePicker, Descriptions, Drawer, Empty, Form, Input, message, Modal, Pagination, Popover, Radio, Result, Select, Space, Statistic, Steps, Table, Tag, Tabs, Tooltip, Upload } = antd;
   const icons = window.icons || window.antdIcons || window.AntDesignIcons || {};
-  const { ArrowLeftOutlined, DownOutlined, SettingOutlined, UpOutlined } = icons;
+  const { ArrowLeftOutlined, DownloadOutlined, DownOutlined, SettingOutlined, UpOutlined } = icons;
 
   function region(page, type) {
     return (page.regions || []).find((item) => item.type === type);
@@ -30,12 +30,40 @@
     cursor[keys[keys.length - 1]] = value;
   }
 
-  function money(value) {
+  function money(value, showCurrency = true) {
     const data = value && typeof value === 'object' ? value : { minor: String(value || '0'), currency: 'CNY' };
     const minor = String(data.minor || '0');
     const negative = minor.startsWith('-');
     const digits = (negative ? minor.slice(1) : minor).padStart(3, '0');
-    return `${negative ? '-' : ''}${digits.slice(0, -2)}.${digits.slice(-2)} ${data.currency || 'CNY'}`;
+    const formatted = `${negative ? '-' : ''}${digits.slice(0, -2)}.${digits.slice(-2)}`;
+    return showCurrency ? `${formatted} ${data.currency || 'CNY'}` : formatted;
+  }
+
+  function amountColumnTitle(column) {
+    const label = String(column.label || '金额');
+    if (column.mixedCurrency === true) return label;
+    const unit = column.unit || ({ CNY: '元', USD: '美元', EUR: '欧元' }[column.currency] || column.currency || '元');
+    if (label.endsWith(`(${unit})`)) return label;
+    if (label.endsWith(`（${unit}）`)) return `${label.slice(0, -(unit.length + 2))}(${unit})`;
+    return `${label}(${unit})`;
+  }
+
+  function statisticTitle(metric) {
+    const label = String(metric.label || '指标');
+    const unit = String(metric.unit || '').trim();
+    if (!unit || label.endsWith(`(${unit})`)) return label;
+    if (label.endsWith(`（${unit}）`)) return `${label.slice(0, -(unit.length + 2))}(${unit})`;
+    return `${label}(${unit})`;
+  }
+
+  function statistic(metric) {
+    return h(Statistic, {
+      key: metric.key,
+      title: statisticTitle(metric),
+      value: metric.value ?? '-',
+      prefix: metric.prefix,
+      precision: metric.precision
+    });
   }
 
   function display(value, format) {
@@ -45,6 +73,17 @@
       return h(Tag, { color: item.tone || 'default' }, item.text || '-');
     }
     return value == null || value === '' ? '-' : String(value);
+  }
+
+  function exportText(value, column) {
+    if (column.format === 'amount') return money(value, column.mixedCurrency === true);
+    if (value && typeof value === 'object') return value.text ?? value.value ?? '';
+    if (Array.isArray(value)) return value.join('、');
+    return value ?? '';
+  }
+
+  function csvCell(value) {
+    return `"${String(value ?? '').replaceAll('"', '""')}"`;
   }
 
   function fieldControl(field) {
@@ -68,8 +107,27 @@
       if (expected === undefined || expected === null || expected === '') return true;
       const raw = row[field.filterKey || field.key];
       const actual = raw && typeof raw === 'object' ? raw.value ?? raw.text ?? raw.minor : raw;
+      if (field.control === 'date-range' && Array.isArray(expected) && expected.length === 2) {
+        const start = typeof expected[0]?.format === 'function' ? expected[0].format('YYYY-MM-DD') : String(expected[0] || '').slice(0, 10);
+        const end = typeof expected[1]?.format === 'function' ? expected[1].format('YYYY-MM-DD') : String(expected[1] || '').slice(0, 10);
+        const current = String(actual || '').slice(0, 10);
+        return Boolean(current && start && end && current >= start && current <= end);
+      }
+      if (field.control === 'select') return String(actual) === String(expected);
       return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());
     });
+  }
+
+  function queryInitialValues(config, tabKey) {
+    const tab = (config.tabs || []).find((item) => item.key === tabKey);
+    const values = { ...(config.initialValues || {}), ...(tab?.initialValues || {}) };
+    const fields = [...(config.selectorFields || []), ...(tab?.selectorFields || []), ...(tab?.fields || config.fields || [])];
+    fields.forEach((field) => {
+      const value = values[field.key];
+      if (field.control === 'date' && typeof value === 'string' && window.dayjs) values[field.key] = window.dayjs(value);
+      if (field.control === 'date-range' && Array.isArray(value) && window.dayjs) values[field.key] = value.map((item) => typeof item === 'string' ? window.dayjs(item) : item);
+    });
+    return values;
   }
 
   function createStore() {
@@ -123,29 +181,100 @@
     const action = region(page, 'action');
     const config = query?.config || {};
     const tableConfig = table?.config || {};
+    const defaultTab = config.defaultTabKey || config.tabs?.[0]?.key;
     const [form] = Form.useForm();
-    const [filters, setFilters] = React.useState({});
-    const [activeTab, setActiveTab] = React.useState(config.tabs?.[0]?.key);
+    const [managementForm] = Form.useForm();
+    const [filters, setFilters] = React.useState(() => queryInitialValues(config, defaultTab));
+    const [activeTab, setActiveTab] = React.useState(defaultTab);
+    const [loading, setLoading] = React.useState(false);
+    const [failure, setFailure] = React.useState('');
+    const [denied, setDenied] = React.useState(false);
     const [collapsed, setCollapsed] = React.useState(false);
     const [pageNo, setPageNo] = React.useState(1);
+    const [pageSize, setPageSize] = React.useState(tableConfig.pagination?.pageSize || 10);
     const [overlay, setOverlay] = React.useState(null);
     const [settingsOpen, setSettingsOpen] = React.useState(false);
+    const [managementOpen, setManagementOpen] = React.useState(false);
     const [visibleKeys, setVisibleKeys] = React.useState(() => (tableConfig.columns || []).filter((column) => column.hidden !== true).map((column) => column.key));
     const overlayPage = overlay ? pages.find((item) => item.id === overlay.pageId) : null;
     const activeTabConfig = (config.tabs || []).find((tab) => tab.key === activeTab);
+    const selectorFields = activeTabConfig?.selectorFields || config.selectorFields || [];
     const fields = activeTabConfig?.fields || config.fields || [];
+    const summaryTabKeys = summary?.config?.visibleTabKeys;
+    const summaryVisible = Boolean(summary && (!summaryTabKeys?.length || summaryTabKeys.includes(activeTab)));
+    const combinedOverview = Boolean(selectorFields.length && summaryVisible);
+    const filterFields = [...selectorFields, ...fields];
     const collapseThreshold = config.collapseThreshold || 3;
     const supportsCollapse = fields.length > collapseThreshold;
     const visibleFields = collapsed ? fields.slice(0, collapseThreshold) : fields;
     const viewRows = (tableConfig.rows || []).filter((row) => Object.entries(activeTabConfig?.filter || {}).every(([key, value]) => String(row[key]) === String(value)));
-    const rows = viewRows.filter((row) => matches(row, fields, filters));
-    const pageSize = tableConfig.pagination?.pageSize || 10;
+    const rows = viewRows.filter((row) => matches(row, filterFields, filters));
     const pagedRows = rows.slice((pageNo - 1) * pageSize, pageNo * pageSize);
-    const metrics = (summary?.config?.metrics || []).map((metric) => {
+    const summarySelectorKey = summary?.config?.selectorKey;
+    const selectedSummaryKey = summarySelectorKey ? filters[summarySelectorKey] : undefined;
+    const sourceMetrics = summary?.config?.metricsBySelector?.[selectedSummaryKey]
+      || summary?.config?.metricsByTab?.[activeTab]
+      || summary?.config?.metrics
+      || [];
+    const metrics = sourceMetrics.map((metric) => {
       if (metric.aggregate === 'count') return { ...metric, value: rows.length };
-      if (metric.aggregate === 'sum') return { ...metric, value: rows.reduce((total, row) => total + Number(valueAt(row, metric.field) || 0), 0) };
+      if (metric.aggregate === 'sum') {
+        const minor = rows.reduce((total, row) => {
+          const value = valueAt(row, metric.field);
+          const source = value && typeof value === 'object' ? value.minor : value;
+          return total + BigInt(String(source || '0'));
+        }, 0n);
+        return { ...metric, value: money({ minor: minor.toString(), currency: metric.currency || 'CNY' }, false) };
+      }
       return metric;
     });
+    const managementConfig = summary?.config?.management;
+    const management = summaryVisible && summary?.capabilities?.includes('summary.manage') && managementConfig?.visible !== false ? managementConfig : null;
+    const createRule = () => managementForm.validateFields().then(() => {
+      message.success(management?.successMessage || '规则信息已新增');
+      managementForm.resetFields();
+      setManagementOpen(false);
+    });
+    const runQuery = (values) => {
+      setLoading(true);
+      setFailure('');
+      setDenied(false);
+      setPageNo(1);
+      window.setTimeout(() => {
+        const valuesList = Object.values(values || {}).map((value) => String(value || '').trim().toUpperCase());
+        if (valuesList.includes('ERROR')) setFailure('服务暂时不可用，请稍后重试。');
+        else if (valuesList.includes('DENIED')) setDenied(true);
+        else setFilters(values || {});
+        setLoading(false);
+      }, 220);
+    };
+    const resetQuery = () => {
+      const selectedValues = Object.fromEntries(selectorFields.map((field) => [field.key, form.getFieldValue(field.key)]));
+      const initialValues = { ...queryInitialValues(config, activeTab), ...selectedValues };
+      form.resetFields();
+      form.setFieldsValue(initialValues);
+      setFilters(initialValues);
+      setFailure('');
+      setDenied(false);
+      setPageNo(1);
+    };
+    const exportRows = (item) => {
+      const exportColumns = (tableConfig.columns || []).filter((column) => column.key !== 'actions' && column.exportable !== false);
+      const content = [
+        exportColumns.map((column) => csvCell(column.format === 'amount' ? amountColumnTitle(column) : column.label)).join(','),
+        ...rows.map((row) => exportColumns.map((column) => csvCell(exportText(row[column.key], column))).join(','))
+      ].join('\n');
+      const blob = new Blob([`\uFEFF${content}`], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = item.fileName || `${page.label || '查询列表'}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      message.success(`已导出 ${rows.length} 条记录`);
+    };
     const columns = (tableConfig.columns || []).filter((column) => visibleKeys.includes(column.key)).map((column) => {
       if (column.actions) return {
         key: column.key, title: column.label, width: column.width, fixed: 'right',
@@ -158,7 +287,16 @@
           }
         }, item.label)))
       };
-      return { key: column.key, dataIndex: column.key, title: column.label, width: column.width, render: (value) => display(value, column.format) };
+      const isAmount = column.format === 'amount';
+      return {
+        key: column.key,
+        dataIndex: column.key,
+        title: isAmount ? amountColumnTitle(column) : column.label,
+        width: column.width,
+        align: isAmount ? 'right' : undefined,
+        className: isAmount ? 'ea-amount-column' : undefined,
+        render: (value) => isAmount ? money(value, column.mixedCurrency === true) : display(value, column.format)
+      };
     });
     const columnSettings = h('div', { className: 'ea-composition-column-settings' },
       h('strong', null, '列设置'),
@@ -167,40 +305,118 @@
         checked: visibleKeys.includes(column.key),
         onChange: (event) => setVisibleKeys((current) => event.target.checked ? [...new Set([...current, column.key])] : current.filter((key) => key !== column.key))
       }, column.label)));
+    const emptyText = failure
+      ? h('div', { className: 'ea-composition-table-state' }, h('strong', null, '查询失败'), h('span', null, failure), h(Button, { onClick: () => runQuery(form.getFieldsValue()) }, '重新查询'))
+      : denied
+        ? h('div', { className: 'ea-composition-table-state' }, h('strong', null, '暂无查询权限'), h('span', null, '请联系管理员开通当前账户范围的查询权限。'))
+        : h(Empty, { description: '暂无匹配数据' });
     return h('div', { className: 'ea-composition-page' },
       query ? h('section', { className: 'ea-composition-module' },
         config.tabs?.length ? h(Tabs, {
           className: 'ea-composition-query-tabs',
           activeKey: activeTab,
           items: config.tabs.map((tab) => ({ key: tab.key, label: tab.count === undefined ? tab.label : `${tab.label}(${tab.count})` })),
-          onChange: (nextTab) => { form.resetFields(); setFilters({}); setActiveTab(nextTab); setPageNo(1); }
+          onChange: (nextTab) => {
+            const initialValues = queryInitialValues(config, nextTab);
+            form.resetFields();
+            setFilters(initialValues);
+            setFailure('');
+            setDenied(false);
+            setCollapsed(false);
+            setActiveTab(nextTab);
+            setPageNo(1);
+          }
         }) : null,
-        h(Form, { form, layout: 'vertical', onFinish: (values) => { setFilters(values); setPageNo(1); } },
+        h(Form, {
+          key: activeTab || 'query',
+          form,
+          layout: 'vertical',
+          style: combinedOverview ? { '--ea-overview-metric-count': Math.max(metrics.length, 1) } : undefined,
+          initialValues: queryInitialValues(config, activeTab),
+          onValuesChange: (changed, values) => {
+            if (summarySelectorKey && Object.hasOwn(changed, summarySelectorKey)) {
+              setFilters(values);
+              setFailure('');
+              setDenied(false);
+              setPageNo(1);
+            }
+          },
+          onFinish: runQuery
+        },
+          selectorFields.length ? h('div', { className: `ea-composition-query-selector-grid${combinedOverview ? ' ea-composition-query-selector-grid--overview' : ''}` },
+            ...selectorFields.map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key, rules: fieldRules(field) }, fieldControl(field)))) : null,
+          summaryVisible ? h('section', { className: 'ea-composition-query-summary', 'aria-label': summary.config?.title || '账户总览' },
+            h('div', { className: 'ea-composition-query-summary-heading' },
+              h('h2', null, summary.config?.title || '账户总览'),
+              management ? h(Button, { htmlType: 'button', type: management.primary === false ? 'default' : 'primary', onClick: () => setManagementOpen(true) }, management.label || '管理') : null),
+            h('div', { className: 'ea-composition-summary' }, ...metrics.map(statistic)),
+            management ? h(Modal, {
+              open: managementOpen,
+              title: management.title || management.label || '信息管理',
+              width: management.width || 640,
+              destroyOnClose: true,
+              onCancel: () => { managementForm.resetFields(); setManagementOpen(false); },
+              footer: h('div', { className: 'ea-composition-overlay-footer' },
+                h(Button, { onClick: () => { managementForm.resetFields(); setManagementOpen(false); } }, '取消'),
+                h(Button, { type: 'primary', onClick: createRule }, management.submitLabel || '新增'))
+            }, h(Form, { form: managementForm, layout: 'vertical', className: 'ea-composition-summary-management-form', initialValues: management.initialValues || {} },
+              ...(management.fields || []).map((field) => h(Form.Item, {
+                key: field.key,
+                className: field.fullSpan ? 'ea-composition-summary-management-form-item--full' : undefined,
+                label: field.label,
+                name: field.key,
+                rules: fieldRules(field)
+              }, fieldControl(field))))) : null) : null,
+          config.queryTitle && !combinedOverview ? h('h2', { className: 'ea-composition-query-title' }, config.queryTitle) : null,
           h('div', { className: 'ea-composition-query-grid' },
-            ...visibleFields.map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key }, fieldControl(field))),
+            ...visibleFields.map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key, rules: fieldRules(field) }, fieldControl(field))),
             h('div', { className: 'ea-composition-query-actions' },
-              h(Button, { onClick: () => { form.resetFields(); setFilters({}); setPageNo(1); } }, '重置'),
-              h(Button, { type: 'primary', htmlType: 'submit' }, '查询'),
+              h(Button, { disabled: loading, onClick: resetQuery }, '重置'),
+              h(Button, { type: 'primary', htmlType: 'submit', loading }, '查询'),
               supportsCollapse ? h(Button, {
                 type: 'link',
                 className: 'ea-composition-query-expand-button',
                 onClick: () => setCollapsed((value) => !value)
               }, collapsed ? '展开' : '收起', collapsed ? (DownOutlined ? h(DownOutlined) : null) : (UpOutlined ? h(UpOutlined) : null)) : null)))
       ) : null,
-      summary ? h('section', { className: 'ea-composition-summary' }, ...metrics.map((metric) => h(Statistic, { key: metric.key, title: metric.label, value: metric.value ?? '-', suffix: metric.unit }))) : null,
       table ? h('section', { className: 'ea-composition-module ea-composition-table' },
         h('div', { className: 'ea-composition-heading' }, h('h2', null, tableConfig.title || '查询列表'),
           h('div', { className: 'ea-composition-result-actions' },
-          action?.config?.actions?.length ? h(Space, null, ...action.config.actions.map((item) => h(Button, { key: item.key, type: item.primary ? 'primary' : 'default', onClick: () => {
-            const outcome = onTransition(item.transitionId, { filters, rows });
-            if (outcome?.presentation === 'drawer' || outcome?.presentation === 'modal') {
-              setOverlay({ pageId: outcome.pageId, presentation: outcome.presentation });
+          action?.config?.actions?.length ? h(Space, null, ...action.config.actions.filter((item) => !denied || item.type !== 'export').map((item) => h(Button, {
+            key: item.key,
+            type: item.primary ? 'primary' : 'default',
+            icon: item.type === 'export' && DownloadOutlined ? h(DownloadOutlined) : null,
+            disabled: loading || (item.type === 'export' && rows.length === 0),
+            onClick: () => {
+              if (item.type === 'export') {
+                exportRows(item);
+                return;
+              }
+              const outcome = onTransition(item.transitionId, { filters, rows });
+              if (outcome?.presentation === 'drawer' || outcome?.presentation === 'modal') {
+                setOverlay({ pageId: outcome.pageId, presentation: outcome.presentation });
+              }
             }
-          } }, item.label))) : null,
+          }, item.label))) : null,
           h(Popover, { open: settingsOpen, onOpenChange: setSettingsOpen, trigger: 'click', content: columnSettings, placement: 'bottomRight' },
             h(Tooltip, { title: '列设置' }, h(Button, { 'aria-label': '列设置', icon: SettingOutlined ? h(SettingOutlined) : null }))))),
-        h(Table, { rowKey: tableConfig.rowKey || 'id', columns, dataSource: pagedRows, pagination: false, scroll: { x: tableConfig.scrollX || 960 }, locale: { emptyText: h(Empty, { description: '暂无匹配数据' }) } }),
-        h('div', { className: 'ea-composition-pagination' }, h('span', null, `共 ${rows.length} 条`), h(Pagination, { current: pageNo, pageSize, total: rows.length, showSizeChanger: false, onChange: setPageNo })),
+        h(Table, { rowKey: tableConfig.rowKey || 'id', columns, dataSource: failure || denied ? [] : pagedRows, loading, pagination: false, size: 'middle', scroll: { x: tableConfig.scrollX || 960 }, locale: { emptyText } }),
+        h('div', { className: 'ea-composition-pagination' }, h('span', null, `共 ${failure || denied ? 0 : rows.length} 条`), h(Pagination, {
+          current: pageNo,
+          pageSize,
+          total: failure || denied ? 0 : rows.length,
+          showSizeChanger: true,
+          pageSizeOptions: tableConfig.pagination?.pageSizeOptions || ['10', '20', '50', '100'],
+          onChange: (nextPage, nextPageSize) => {
+            if (nextPageSize !== pageSize) {
+              setPageSize(nextPageSize);
+              setPageNo(1);
+              return;
+            }
+            setPageNo(nextPage);
+          },
+          onShowSizeChange: (_, nextPageSize) => { setPageSize(nextPageSize); setPageNo(1); }
+        })),
         overlayPage && overlayPage.skeleton === 'detail-workbench' ? h(Drawer, {
           open: true,
           title: overlayPage.label,
@@ -298,9 +514,14 @@
 
   function DetailWorkbench({ page, context, embedded = false }) {
     const detail = region(page, 'detail');
+    const summary = region(page, 'summary');
     const config = detail?.config || {};
+    const metrics = summary?.config?.metrics || config.metrics || [];
     return h('div', { className: 'ea-composition-page' }, h('section', { className: 'ea-composition-module' },
       embedded ? null : h('div', { className: 'ea-composition-heading' }, h('h1', null, config.title || page.label)),
+      metrics.length ? h('section', { className: 'ea-composition-detail-summary', 'aria-label': summary?.config?.title || config.metricsTitle || '数据概览' },
+        h('h2', null, summary?.config?.title || config.metricsTitle || '数据概览'),
+        h('div', { className: 'ea-composition-summary' }, ...metrics.map(statistic))) : null,
       h(Descriptions, { column: 2, size: 'small', items: (config.fields || []).map((field) => ({ key: field.key, label: field.label, children: display(valueAt(context[page.id] || config.data || {}, field.source || field.key), field.format) })) })
     ));
   }
@@ -345,7 +566,7 @@
         target = document.createElement('div');
         mounted.set(id, target);
         shell.openTab({ id, label: page.label, pinned: id === rootId, closable: id !== rootId, content: target });
-        ReactDOM.render(h(ConfigProvider, { theme: { token: { colorPrimary: '#1E75FF', borderRadius: 4 } } }, h(CompositionPage, { page, pages, store, transition: (transitionId, payload) => runTransition(page, transitionId, payload || {}) })), target);
+        ReactDOM.render(h(ConfigProvider, { theme: { token: { colorPrimary: '#1E75FF', borderRadius: 6 }, components: { Button: { borderRadius: 6 }, Table: { cellPaddingBlockMD: 10, cellPaddingInlineMD: 16, headerBg: '#F5F4F5', headerColor: '#606266' } } } }, h(CompositionPage, { page, pages, store, transition: (transitionId, payload) => runTransition(page, transitionId, payload || {}) })), target);
       } else shell.activateTab(id);
     }
 

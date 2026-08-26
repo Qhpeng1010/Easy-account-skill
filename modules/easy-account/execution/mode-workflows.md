@@ -50,4 +50,4 @@
 | design | `requirement.md`、`page-design.md`、`rules-read.md` | `page-spec.json`、`page-composition.json` 或 `capability-gap.md` | 有可构建规格时生成预览与构建记录；始终生成 `mode-delivery.json` |
 | full | `requirement.md`、`page-design.md`、`rules-read.md`、一种页面规格、`tasks.md`、`implementation.md`、`review.md` | 无 | 预览、构建记录、`mode-delivery.json` |
 
-`mode-state.json` 是准备脚本生成的请求与模式记录，不是业务需求文档。`preview.html`、`preview-app.js`、业务 CSS、Shell、资产和 vendor 仍由对应构建器生成，不手工修改。
+`mode-state.json` 是准备脚本生成的请求与模式记录，不是业务需求文档。`preview.html`、`preview-app.js`、业务 CSS、Shell 和资产仍由对应构建器生成，不手工修改；预览使用 Shell 目录中的公共本地 vendor。

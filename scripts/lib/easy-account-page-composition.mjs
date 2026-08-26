@@ -107,6 +107,35 @@ export function validatePageComposition(spec, root = process.cwd(), options = {}
       if (!capability) issue(errors, `${location} declares unknown capability ${capabilityId}.`);
       else if (capability.region !== region.type) issue(errors, `${location} capability ${capabilityId} belongs to ${capability.region}, not ${region.type}.`);
     }
+    if (region.type === 'summary') {
+      const visibleTabKeys = region.config?.visibleTabKeys;
+      if (visibleTabKeys !== undefined) {
+        const queryTabs = regions.find((item) => item?.type === 'query')?.config?.tabs;
+        const queryTabKeys = Array.isArray(queryTabs) ? queryTabs.map((tab) => tab?.key) : [];
+        if (!Array.isArray(visibleTabKeys) || visibleTabKeys.length === 0 || !visibleTabKeys.every((key) => typeof key === 'string' && key.trim())) {
+          issue(errors, `${location}.config.visibleTabKeys must be a non-empty array of query Tab keys.`);
+        } else {
+          if (!unique(visibleTabKeys)) issue(errors, `${location}.config.visibleTabKeys must not contain duplicate Tab keys.`);
+          const unknownTabKeys = visibleTabKeys.filter((key) => !queryTabKeys.includes(key));
+          if (unknownTabKeys.length) issue(errors, `${location}.config.visibleTabKeys contains unknown query Tab keys: ${unknownTabKeys.join(', ')}.`);
+        }
+      }
+      const managesSummary = region.capabilities?.includes('summary.manage');
+      const management = region.config?.management;
+      if (management?.visible !== undefined && typeof management.visible !== 'boolean') {
+        issue(errors, `${location}.config.management.visible must be a boolean when provided.`);
+      }
+      if (managesSummary && (!management || typeof management !== 'object' || Array.isArray(management))) {
+        issue(errors, `${location} with summary.manage requires config.management.`);
+      }
+      if (!managesSummary && management) issue(errors, `${location}.config.management requires summary.manage.`);
+      if (managesSummary) {
+        const fields = management?.fields;
+        if (!Array.isArray(fields) || fields.length === 0 || fields.length > 6) {
+          issue(errors, `${location}.config.management.fields must contain 1 to 6 fields.`);
+        }
+      }
+    }
     if (region.id) instances.set(region.id, { ...region, regionDefinition });
   });
 

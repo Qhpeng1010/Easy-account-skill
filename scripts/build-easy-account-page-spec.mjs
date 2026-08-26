@@ -11,6 +11,15 @@ if (!specArg) {
   process.exit(2);
 }
 function sha256(file) { return createHash('sha256').update(readFileSync(file)).digest('hex'); }
+function versionPreviewAssets(changeDir, names) {
+  const hash = createHash('sha256');
+  names.forEach((name) => hash.update(readFileSync(resolve(changeDir, name))));
+  const version = hash.digest('hex').slice(0, 12);
+  const previewPath = resolve(changeDir, 'preview.html');
+  const preview = readFileSync(previewPath, 'utf8');
+  if (!preview.includes('__EA_ASSET_VERSION__')) throw new Error('preview template asset version placeholder is missing.');
+  writeFileSync(previewPath, preview.replaceAll('__EA_ASSET_VERSION__', version));
+}
 try {
   const root = process.cwd();
   const specPath = assertChangeSpecPath(root, specArg);
@@ -35,9 +44,9 @@ try {
   ];
   fixedCopies.forEach(([source, target]) => cpSync(source, target));
   cpSync(resolve(shellRoot, 'assets'), resolve(changeDir, 'assets'), { recursive: true });
-  cpSync(resolve(shellRoot, 'vendor'), resolve(changeDir, 'vendor'), { recursive: true });
   const appPath = resolve(changeDir, 'preview-app.js');
   writeFileSync(appPath, generatedPreviewApp(runtimeSpec));
+  versionPreviewAssets(changeDir, ['shell.css', 'content-base.css', 'business.css', 'shell-config.example.js', 'shell-runtime.js', 'page-spec-runtime.js', 'preview-app.js']);
   const policy = readJson(resolve(root, 'modules/easy-account/execution/generation-policy.json'));
   const generated = Object.fromEntries([
     ['preview.html', resolve(changeDir, 'preview.html')],

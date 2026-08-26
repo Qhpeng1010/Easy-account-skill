@@ -60,6 +60,7 @@ for (const transition of rules.transitions) {
 const querySummary = rules.recipes.find((recipe) => recipe.id === 'query-summary-table');
 assert.deepEqual(querySummary.regions, ['query', 'summary', 'table']);
 assert.equal(querySummary.capabilities.includes('summary.metrics'), true);
+assert.equal(capabilities.get('summary.manage')?.region, 'summary');
 const submissionResult = rules.recipes.find((recipe) => recipe.id === 'submission-review-result');
 assert.equal(submissionResult.capabilities.includes('binding.submissionToResult'), true);
 

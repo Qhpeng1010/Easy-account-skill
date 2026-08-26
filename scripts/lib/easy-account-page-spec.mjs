@@ -160,6 +160,7 @@ function validateDetail(errors, spec, capabilities) {
 */
 
 function validationIssue(errors, condition, message) { if (!condition) errors.push(message); }
+function hasText(value) { return typeof value === 'string' && value.trim().length > 0; }
 
 function interactiveFields(form) {
   const fields = Array.isArray(form?.fields) ? form.fields : Array.isArray(form?.groups)
@@ -186,13 +187,24 @@ export function validatePageSpec(spec, root = process.cwd()) {
     if (fields.length > director.runtimePolicy.query.basicMaxFields && spec.content?.capabilities?.includes('query.basic')) {
       errors.push(`list.query.fields exceeds director rule maximum of ${director.runtimePolicy.query.basicMaxFields}.`);
     }
-    const action = spec.list?.primaryAction;
+    const table = spec.list?.table;
+    const action = table?.primaryAction;
     if (action) {
       const count = interactiveFields(action.form).length;
       const expected = resolveFormPresentation(count, director.runtimePolicy);
-      validationIssue(errors, ['modal', 'drawer', 'page'].includes(action.presentation || 'modal'), 'list.primaryAction.presentation is invalid.');
-      if ((action.presentation || 'modal') !== expected) errors.push(`list.primaryAction.presentation ${action.presentation || 'modal'} conflicts with director rules; expected ${expected}.`);
+      const presentation = action.presentation || 'modal';
+      validationIssue(errors, hasText(action.label), 'list.table.primaryAction.label is required.');
+      validationIssue(errors, action.form && typeof action.form === 'object' && !Array.isArray(action.form), 'list.table.primaryAction.form is required.');
+      validationIssue(errors, ['modal', 'drawer', 'page'].includes(presentation), 'list.table.primaryAction.presentation is invalid.');
+      if (['modal', 'drawer'].includes(presentation)) validationIssue(errors, hasText(action.form?.title), 'list.table.primaryAction.form.title is required for Modal and Drawer.');
+      if (presentation !== expected) errors.push(`list.table.primaryAction.presentation ${presentation} conflicts with director rules; expected ${expected}.`);
     }
+    const rowActions = (table?.columns || []).flatMap((column) => column?.actions || []);
+    rowActions.filter((rowAction) => rowAction?.type === 'edit').forEach((rowAction, index) => {
+      validationIssue(errors, hasText(rowAction.label), `list.table edit action ${index + 1}.label is required.`);
+      validationIssue(errors, rowAction.form && typeof rowAction.form === 'object' && !Array.isArray(rowAction.form), `list.table edit action ${index + 1}.form is required.`);
+      validationIssue(errors, hasText(rowAction.form?.title), `list.table edit action ${index + 1}.form.title is required.`);
+    });
     if (spec.list?.table?.drawerDetail) validationIssue(errors, resolveDetailPresentation(director.runtimePolicy) === 'drawer', 'list detail must use the director default Drawer.');
   } else if (family === 'form') {
     const count = interactiveFields(spec.form).length;

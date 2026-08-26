@@ -238,6 +238,8 @@ dashboard 为 pending。
   assert.equal(existsSync(resolve(compositionChange.dir, 'composition-validation.json')), true);
   assert.equal(JSON.parse(readFileSync(resolve(compositionChange.dir, 'composition-validation.json'), 'utf8')).readiness, 'preview-ready');
   assert.equal(existsSync(resolve(compositionChange.dir, 'preview.html')), true);
+  assert.equal(existsSync(resolve(compositionChange.dir, 'vendor')), false);
+  assert.match(readFileSync(resolve(compositionChange.dir, 'preview.html'), 'utf8'), /\.\.\/\.\.\/modules\/easy-account\/shell\/vendor\//);
 
   const fullGapChange = newChange('full-gap');
   const fullGapRequest = '完整生成易账通业务概览 Dashboard';
@@ -273,6 +275,8 @@ dashboard 为 pending。
   assert.equal(fullResult.status, 'completed');
   assert.equal(fullResult.humanAcceptance, 'pending');
   assert.equal(existsSync(resolve(fullChange.dir, 'preview.html')), true);
+  assert.equal(existsSync(resolve(fullChange.dir, 'vendor')), false);
+  assert.match(readFileSync(resolve(fullChange.dir, 'preview.html'), 'utf8'), /\.\.\/\.\.\/modules\/easy-account\/shell\/vendor\//);
   assert.match(readFileSync(resolve(fullChange.dir, 'review.md'), 'utf8'), /easy-account-static-checks:start/);
   assert.equal(readFileSync(resolve(fullChange.dir, 'mode-state.json'), 'utf8').includes(fullRequest), true);
   assert.equal(readFileSync(resolve(fullChange.dir, 'page-spec.json'), 'utf8').includes(fullRequest), true);

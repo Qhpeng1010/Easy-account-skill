@@ -1,4 +1,4 @@
 interface:
   display_name: "易账通页面技能"
-  short_description: "按自然语言或快捷模式生成易账通需求与后台页面"
-  default_prompt: "使用 $easy-account-skill 处理易账通需求；未指定快捷命令时沿用默认页面生成工作流。"
+  short_description: "识别易账通、Yee账通及省略名称的后台页面需求"
+  default_prompt: "使用 $easy-account-skill 处理这个易账通后台页面需求；即使未写产品名称，也按易账通业务规则生成。"

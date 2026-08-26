@@ -1,12 +1,13 @@
 # Easy Account Domain
 
-Easy Account（易账通）是独立的账户与账务管理业务域。它使用自己的产品框架、设计规范、主题、组件约定和页面方案，不复用 Boss Ledger 壳层。
+Easy Account（易账通，也写作 Yee账通、yee账通）是独立的账户与账务管理业务域。以上名称均指同一个业务，统一使用 `easy-account` 作为内部标识。它使用自己的产品框架、设计规范、主题、组件约定和页面方案，不复用 Boss Ledger 壳层。
 
 ## Route Boundary
 
-- 明确包含 `Easy Account`、`EasyAccount`、`easy-account` 或“易账通”的需求进入本模块。
-- Boss Ledger、开放平台、易来钱收银台不进入本模块。
-- 只有“账户”或“账务”但没有 Easy Account 产品标识时，不强制路由到本模块。
+- 明确包含 `Easy Account`、`EasyAccount`、`easy-account`、“易账通”“Yee账通”或“yee账通”的需求进入本模块；英文部分大小写不敏感。
+- 本技能是易账通专用入口。技能被调用后，需求没有写任何产品名称时仍进入本模块，不要求用户重复声明业务主体。
+- 明确以 Boss Ledger（老板管账）、易来钱收银台、易宝开放平台等其他系统为交付目标的请求不进入本模块。
+- 同一请求同时出现易账通别名和其他系统名称时，优先理解用户明确表述的交付目标；目标不清楚时先确认，不根据单个名称关键词强行路由。
 
 ## Progressive Loading
 
