@@ -30,10 +30,25 @@ function hasRegionType(regions, type) {
 }
 
 function requiredBindingCapability(binding) {
+  if (binding.from?.scope === 'query' && binding.to?.regionType === 'overview') return 'binding.selectorToOverview';
   if (binding.from?.scope === 'query' && binding.to?.regionType === 'summary') return 'binding.queryToSummary';
   if (binding.from?.scope === 'row' && binding.to?.regionType === 'step-form') return 'binding.rowToForm';
   if (binding.from?.scope === 'submission' && binding.to?.regionType === 'result') return 'binding.submissionToResult';
   return '';
+}
+
+function validateVisibleTabKeys(errors, regions, region, location) {
+  const visibleTabKeys = region.config?.visibleTabKeys;
+  if (visibleTabKeys === undefined) return;
+  const queryTabs = regions.find((item) => item?.type === 'query')?.config?.tabs;
+  const queryTabKeys = Array.isArray(queryTabs) ? queryTabs.map((tab) => tab?.key) : [];
+  if (!Array.isArray(visibleTabKeys) || visibleTabKeys.length === 0 || !visibleTabKeys.every((key) => typeof key === 'string' && key.trim())) {
+    issue(errors, `${location}.config.visibleTabKeys must be a non-empty array of query Tab keys.`);
+    return;
+  }
+  if (!unique(visibleTabKeys)) issue(errors, `${location}.config.visibleTabKeys must not contain duplicate Tab keys.`);
+  const unknownTabKeys = visibleTabKeys.filter((key) => !queryTabKeys.includes(key));
+  if (unknownTabKeys.length) issue(errors, `${location}.config.visibleTabKeys contains unknown query Tab keys: ${unknownTabKeys.join(', ')}.`);
 }
 
 export function readCompositionModel(root = process.cwd()) {
@@ -107,34 +122,38 @@ export function validatePageComposition(spec, root = process.cwd(), options = {}
       if (!capability) issue(errors, `${location} declares unknown capability ${capabilityId}.`);
       else if (capability.region !== region.type) issue(errors, `${location} capability ${capabilityId} belongs to ${capability.region}, not ${region.type}.`);
     }
-    if (region.type === 'summary') {
-      const visibleTabKeys = region.config?.visibleTabKeys;
-      if (visibleTabKeys !== undefined) {
-        const queryTabs = regions.find((item) => item?.type === 'query')?.config?.tabs;
-        const queryTabKeys = Array.isArray(queryTabs) ? queryTabs.map((tab) => tab?.key) : [];
-        if (!Array.isArray(visibleTabKeys) || visibleTabKeys.length === 0 || !visibleTabKeys.every((key) => typeof key === 'string' && key.trim())) {
-          issue(errors, `${location}.config.visibleTabKeys must be a non-empty array of query Tab keys.`);
-        } else {
-          if (!unique(visibleTabKeys)) issue(errors, `${location}.config.visibleTabKeys must not contain duplicate Tab keys.`);
-          const unknownTabKeys = visibleTabKeys.filter((key) => !queryTabKeys.includes(key));
-          if (unknownTabKeys.length) issue(errors, `${location}.config.visibleTabKeys contains unknown query Tab keys: ${unknownTabKeys.join(', ')}.`);
-        }
-      }
-      const managesSummary = region.capabilities?.includes('summary.manage');
+    if (region.type === 'query' && region.config?.collapseThreshold !== undefined
+      && region.config.collapseThreshold !== director.runtimePolicy.query.collapseThreshold) {
+      issue(errors, `${location}.config.collapseThreshold must match the fixed director rule value ${director.runtimePolicy.query.collapseThreshold}.`);
+    }
+    if (region.type === 'overview') {
+      validateVisibleTabKeys(errors, regions, region, location);
+      const managesOverview = region.capabilities?.includes('overview.manage');
       const management = region.config?.management;
       if (management?.visible !== undefined && typeof management.visible !== 'boolean') {
         issue(errors, `${location}.config.management.visible must be a boolean when provided.`);
       }
-      if (managesSummary && (!management || typeof management !== 'object' || Array.isArray(management))) {
-        issue(errors, `${location} with summary.manage requires config.management.`);
+      if (managesOverview && (!management || typeof management !== 'object' || Array.isArray(management))) {
+        issue(errors, `${location} with overview.manage requires config.management.`);
       }
-      if (!managesSummary && management) issue(errors, `${location}.config.management requires summary.manage.`);
-      if (managesSummary) {
+      if (!managesOverview && management) issue(errors, `${location}.config.management requires overview.manage.`);
+      if (managesOverview) {
         const fields = management?.fields;
         if (!Array.isArray(fields) || fields.length === 0 || fields.length > 6) {
           issue(errors, `${location}.config.management.fields must contain 1 to 6 fields.`);
         }
       }
+      const metrics = [
+        ...(region.config?.metrics || []),
+        ...Object.values(region.config?.metricsBySelector || {}).flat(),
+        ...Object.values(region.config?.metricsByTab || {}).flat()
+      ];
+      if (metrics.some((metric) => metric?.aggregate)) issue(errors, `${location} overview metrics must not declare aggregate; use a summary region for query-result aggregation.`);
+    }
+    if (region.type === 'summary') {
+      validateVisibleTabKeys(errors, regions, region, location);
+      const overviewOnlyKeys = ['selectorKey', 'metricsBySelector', 'management'].filter((key) => region.config?.[key] !== undefined);
+      if (overviewOnlyKeys.length) issue(errors, `${location} summary config contains overview-only properties: ${overviewOnlyKeys.join(', ')}.`);
     }
     if (region.id) instances.set(region.id, { ...region, regionDefinition });
   });

@@ -48,12 +48,17 @@
     return `${label}(${unit})`;
   }
 
-  function statisticTitle(metric) {
+  function statisticLabel(metric) {
     const label = String(metric.label || '指标');
     const unit = String(metric.unit || '').trim();
-    if (!unit || label.endsWith(`(${unit})`)) return label;
-    if (label.endsWith(`（${unit}）`)) return `${label.slice(0, -(unit.length + 2))}(${unit})`;
-    return `${label}(${unit})`;
+    if (unit && (label.endsWith(`(${unit})`) || label.endsWith(`（${unit}）`))) return label.slice(0, -(unit.length + 2));
+    return label;
+  }
+
+  function statisticTitle(metric) {
+    const label = statisticLabel(metric);
+    const unit = String(metric.unit || '').trim();
+    return unit ? `${label}(${unit})` : label;
   }
 
   function statistic(metric) {
@@ -66,12 +71,26 @@
     });
   }
 
+  function inlineSummary(metrics) {
+    const children = [h('span', { key: 'label', className: 'ea-composition-inline-summary-label' }, '查询汇总：')];
+    metrics.forEach((metric, index) => {
+      if (index) children.push(h('span', { key: `separator-${metric.key}`, className: 'ea-composition-inline-summary-separator', 'aria-hidden': true }, '｜'));
+      children.push(h('span', { key: metric.key, className: 'ea-composition-inline-summary-metric' },
+        h('span', null, statisticLabel(metric)),
+        ' ',
+        h('span', { className: 'ea-composition-inline-summary-value' }, metric.value ?? '-'),
+        metric.unit ? ` ${metric.unit}` : ''));
+    });
+    return h('div', { className: 'ea-composition-inline-summary', 'aria-label': '查询汇总' }, ...children);
+  }
+
   function display(value, format) {
     if (format === 'amount') return money(value);
     if (format === 'status') {
       const item = value && typeof value === 'object' ? value : { text: String(value || '-'), tone: 'default' };
       return h(Tag, { color: item.tone || 'default' }, item.text || '-');
     }
+    if (value && typeof value.format === 'function') return value.format('YYYY-MM-DD HH:mm:ss');
     return value == null || value === '' ? '-' : String(value);
   }
 
@@ -176,6 +195,7 @@
 
   function QueryWorkbench({ page, context, pages, onTransition }) {
     const query = region(page, 'query');
+    const overview = region(page, 'overview');
     const summary = region(page, 'summary');
     const table = region(page, 'table');
     const action = region(page, 'action');
@@ -200,23 +220,28 @@
     const activeTabConfig = (config.tabs || []).find((tab) => tab.key === activeTab);
     const selectorFields = activeTabConfig?.selectorFields || config.selectorFields || [];
     const fields = activeTabConfig?.fields || config.fields || [];
+    const overviewTabKeys = overview?.config?.visibleTabKeys;
+    const overviewVisible = Boolean(overview && (!overviewTabKeys?.length || overviewTabKeys.includes(activeTab)));
     const summaryTabKeys = summary?.config?.visibleTabKeys;
     const summaryVisible = Boolean(summary && (!summaryTabKeys?.length || summaryTabKeys.includes(activeTab)));
-    const combinedOverview = Boolean(selectorFields.length && summaryVisible);
+    const combinedOverview = Boolean(selectorFields.length && overviewVisible);
     const filterFields = [...selectorFields, ...fields];
-    const collapseThreshold = config.collapseThreshold || 3;
+    const collapseThreshold = page.directorPolicy?.query?.collapseThreshold || 3;
     const supportsCollapse = fields.length > collapseThreshold;
     const visibleFields = collapsed ? fields.slice(0, collapseThreshold) : fields;
     const viewRows = (tableConfig.rows || []).filter((row) => Object.entries(activeTabConfig?.filter || {}).every(([key, value]) => String(row[key]) === String(value)));
     const rows = viewRows.filter((row) => matches(row, filterFields, filters));
     const pagedRows = rows.slice((pageNo - 1) * pageSize, pageNo * pageSize);
-    const summarySelectorKey = summary?.config?.selectorKey;
-    const selectedSummaryKey = summarySelectorKey ? filters[summarySelectorKey] : undefined;
-    const sourceMetrics = summary?.config?.metricsBySelector?.[selectedSummaryKey]
-      || summary?.config?.metricsByTab?.[activeTab]
+    const overviewSelectorKey = overview?.config?.selectorKey;
+    const selectedOverviewKey = overviewSelectorKey ? filters[overviewSelectorKey] : undefined;
+    const overviewMetrics = overview?.config?.metricsBySelector?.[selectedOverviewKey]
+      || overview?.config?.metricsByTab?.[activeTab]
+      || overview?.config?.metrics
+      || [];
+    const sourceSummaryMetrics = summary?.config?.metricsByTab?.[activeTab]
       || summary?.config?.metrics
       || [];
-    const metrics = sourceMetrics.map((metric) => {
+    const summaryMetrics = sourceSummaryMetrics.map((metric) => {
       if (metric.aggregate === 'count') return { ...metric, value: rows.length };
       if (metric.aggregate === 'sum') {
         const minor = rows.reduce((total, row) => {
@@ -226,10 +251,19 @@
         }, 0n);
         return { ...metric, value: money({ minor: minor.toString(), currency: metric.currency || 'CNY' }, false) };
       }
+      if (metric.aggregate === 'sumNumber') {
+        const total = rows.reduce((sum, row) => {
+          const value = valueAt(row, metric.field);
+          return sum + BigInt(String(value || '0'));
+        }, 0n);
+        return { ...metric, value: total.toString() };
+      }
       return metric;
     });
-    const managementConfig = summary?.config?.management;
-    const management = summaryVisible && summary?.capabilities?.includes('summary.manage') && managementConfig?.visible !== false ? managementConfig : null;
+    const inlineSummaryVisible = summaryVisible && summaryMetrics.length > 0 && summaryMetrics.length <= 3;
+    const cardSummaryVisible = summaryVisible && summaryMetrics.length > 3;
+    const managementConfig = overview?.config?.management;
+    const management = overviewVisible && overview?.capabilities?.includes('overview.manage') && managementConfig?.visible !== false ? managementConfig : null;
     const createRule = () => managementForm.validateFields().then(() => {
       message.success(management?.successMessage || '规则信息已新增');
       managementForm.resetFields();
@@ -331,10 +365,10 @@
           key: activeTab || 'query',
           form,
           layout: 'vertical',
-          style: combinedOverview ? { '--ea-overview-metric-count': Math.max(metrics.length, 1) } : undefined,
+          style: combinedOverview ? { '--ea-overview-metric-count': Math.max(overviewMetrics.length, 1) } : undefined,
           initialValues: queryInitialValues(config, activeTab),
           onValuesChange: (changed, values) => {
-            if (summarySelectorKey && Object.hasOwn(changed, summarySelectorKey)) {
+            if (overviewSelectorKey && Object.hasOwn(changed, overviewSelectorKey)) {
               setFilters(values);
               setFailure('');
               setDenied(false);
@@ -345,11 +379,11 @@
         },
           selectorFields.length ? h('div', { className: `ea-composition-query-selector-grid${combinedOverview ? ' ea-composition-query-selector-grid--overview' : ''}` },
             ...selectorFields.map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key, rules: fieldRules(field) }, fieldControl(field)))) : null,
-          summaryVisible ? h('section', { className: 'ea-composition-query-summary', 'aria-label': summary.config?.title || '账户总览' },
-            h('div', { className: 'ea-composition-query-summary-heading' },
-              h('h2', null, summary.config?.title || '账户总览'),
+          overviewVisible ? h('section', { className: 'ea-composition-query-overview', 'aria-label': overview.config?.title || '对象总览' },
+            h('div', { className: 'ea-composition-query-overview-heading' },
+              h('h2', null, overview.config?.title || '对象总览'),
               management ? h(Button, { htmlType: 'button', type: management.primary === false ? 'default' : 'primary', onClick: () => setManagementOpen(true) }, management.label || '管理') : null),
-            h('div', { className: 'ea-composition-summary' }, ...metrics.map(statistic)),
+            h('div', { className: 'ea-composition-statistics ea-composition-overview-statistics' }, ...overviewMetrics.map(statistic)),
             management ? h(Modal, {
               open: managementOpen,
               title: management.title || management.label || '信息管理',
@@ -359,10 +393,10 @@
               footer: h('div', { className: 'ea-composition-overlay-footer' },
                 h(Button, { onClick: () => { managementForm.resetFields(); setManagementOpen(false); } }, '取消'),
                 h(Button, { type: 'primary', onClick: createRule }, management.submitLabel || '新增'))
-            }, h(Form, { form: managementForm, layout: 'vertical', className: 'ea-composition-summary-management-form', initialValues: management.initialValues || {} },
+            }, h(Form, { form: managementForm, layout: 'vertical', className: 'ea-composition-overview-management-form', initialValues: management.initialValues || {} },
               ...(management.fields || []).map((field) => h(Form.Item, {
                 key: field.key,
-                className: field.fullSpan ? 'ea-composition-summary-management-form-item--full' : undefined,
+                className: field.fullSpan ? 'ea-composition-overview-management-form-item--full' : undefined,
                 label: field.label,
                 name: field.key,
                 rules: fieldRules(field)
@@ -379,8 +413,10 @@
                 onClick: () => setCollapsed((value) => !value)
               }, collapsed ? '展开' : '收起', collapsed ? (DownOutlined ? h(DownOutlined) : null) : (UpOutlined ? h(UpOutlined) : null)) : null)))
       ) : null,
+      cardSummaryVisible ? h('section', { className: 'ea-composition-query-result-summary', 'aria-label': summary.config?.title || '查询结果汇总' },
+        h('div', { className: 'ea-composition-statistics ea-composition-summary-statistics' }, ...summaryMetrics.map(statistic))) : null,
       table ? h('section', { className: 'ea-composition-module ea-composition-table' },
-        h('div', { className: 'ea-composition-heading' }, h('h2', null, tableConfig.title || '查询列表'),
+        h('div', { className: 'ea-composition-heading' }, inlineSummaryVisible ? inlineSummary(summaryMetrics) : h('h2', null, tableConfig.title || '查询列表'),
           h('div', { className: 'ea-composition-result-actions' },
           action?.config?.actions?.length ? h(Space, null, ...action.config.actions.filter((item) => !denied || item.type !== 'export').map((item) => h(Button, {
             key: item.key,
@@ -514,14 +550,14 @@
 
   function DetailWorkbench({ page, context, embedded = false }) {
     const detail = region(page, 'detail');
-    const summary = region(page, 'summary');
+    const overview = region(page, 'overview');
     const config = detail?.config || {};
-    const metrics = summary?.config?.metrics || config.metrics || [];
+    const metrics = overview?.config?.metrics || config.metrics || [];
     return h('div', { className: 'ea-composition-page' }, h('section', { className: 'ea-composition-module' },
       embedded ? null : h('div', { className: 'ea-composition-heading' }, h('h1', null, config.title || page.label)),
-      metrics.length ? h('section', { className: 'ea-composition-detail-summary', 'aria-label': summary?.config?.title || config.metricsTitle || '数据概览' },
-        h('h2', null, summary?.config?.title || config.metricsTitle || '数据概览'),
-        h('div', { className: 'ea-composition-summary' }, ...metrics.map(statistic))) : null,
+      metrics.length ? h('section', { className: 'ea-composition-detail-overview', 'aria-label': overview?.config?.title || config.metricsTitle || '数据概览' },
+        h('h2', null, overview?.config?.title || config.metricsTitle || '数据概览'),
+        h('div', { className: 'ea-composition-statistics ea-composition-overview-statistics' }, ...metrics.map(statistic))) : null,
       h(Descriptions, { column: 2, size: 'small', items: (config.fields || []).map((field) => ({ key: field.key, label: field.label, children: display(valueAt(context[page.id] || config.data || {}, field.source || field.key), field.format) })) })
     ));
   }

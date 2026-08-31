@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "modelVersion": "2026.08.18.1",
+  "modelVersion": "2026.08.31.1",
   "system": "easy-account",
   "skeletons": [
     {
@@ -9,7 +9,7 @@
       "runtimeStatus": "implemented",
       "legacyFamilies": ["list"],
       "requiredRegions": ["query", "table"],
-      "optionalRegions": ["summary", "action", "detail-drawer"]
+      "optionalRegions": ["overview", "summary", "action", "detail-drawer"]
     },
     {
       "id": "form-workflow",
@@ -25,7 +25,7 @@
       "runtimeStatus": "implemented",
       "legacyFamilies": ["detail"],
       "requiredRegions": ["detail"],
-      "optionalRegions": ["summary", "table", "action"]
+      "optionalRegions": ["overview", "table", "action"]
     },
     {
       "id": "result-workflow",
@@ -38,7 +38,8 @@
   ],
   "regions": [
     { "id": "query", "label": "查询区", "runtimeStatus": "implemented", "capabilities": ["query.basic", "query.advanced"] },
-    { "id": "summary", "label": "统计区", "runtimeStatus": "implemented", "capabilities": ["summary.metrics", "summary.aggregate", "summary.manage", "binding.queryToSummary"] },
+    { "id": "overview", "label": "对象总览区", "runtimeStatus": "implemented", "capabilities": ["overview.metrics", "overview.manage", "binding.selectorToOverview"] },
+    { "id": "summary", "label": "查询结果汇总区", "runtimeStatus": "implemented", "capabilities": ["summary.metrics", "summary.aggregate", "binding.queryToSummary"] },
     { "id": "table", "label": "结果表格", "runtimeStatus": "implemented", "capabilities": ["table.flat", "table.pagination", "table.status", "table.amount", "table.columnSettings"] },
     { "id": "action", "label": "操作区", "runtimeStatus": "implemented", "capabilities": ["action.primary", "action.secondary", "action.confirm", "navigation.openTab"] },
     { "id": "detail-drawer", "label": "详情抽屉", "runtimeStatus": "implemented", "capabilities": ["detail.drawer"] },
@@ -50,9 +51,11 @@
   "capabilities": [
     { "id": "query.basic", "kind": "query", "region": "query", "runtimeStatus": "implemented" },
     { "id": "query.advanced", "kind": "query", "region": "query", "runtimeStatus": "implemented" },
+    { "id": "overview.metrics", "kind": "overview", "region": "overview", "runtimeStatus": "implemented" },
+    { "id": "overview.manage", "kind": "overview", "region": "overview", "runtimeStatus": "implemented" },
+    { "id": "binding.selectorToOverview", "kind": "binding", "region": "overview", "runtimeStatus": "implemented" },
     { "id": "summary.metrics", "kind": "summary", "region": "summary", "runtimeStatus": "implemented" },
     { "id": "summary.aggregate", "kind": "summary", "region": "summary", "runtimeStatus": "implemented" },
-    { "id": "summary.manage", "kind": "summary", "region": "summary", "runtimeStatus": "implemented" },
     { "id": "table.flat", "kind": "table", "region": "table", "runtimeStatus": "implemented" },
     { "id": "table.pagination", "kind": "table", "region": "table", "runtimeStatus": "implemented" },
     { "id": "table.status", "kind": "table", "region": "table", "runtimeStatus": "implemented" },

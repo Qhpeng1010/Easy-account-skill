@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "policyVersion": "2026.08.03.1",
+  "policyVersion": "2026.08.31.1",
   "system": "easy-account",
   "strategyVersion": 2,
   "strategySource": "modules/easy-account/execution/capability-model",

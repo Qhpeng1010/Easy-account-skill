@@ -9,10 +9,22 @@ assert.equal(simple.strategy, 'legacy-adapter');
 assert.equal(simple.family, 'list');
 assert.equal(simple.templateId, 'list.account-query');
 
-const summary = resolvePageStrategy('做一个账户查询、顶部统计指标和明细列表页面', root);
+const summary = resolvePageStrategy('做一个账户查询、查询结果汇总和明细列表页面', root);
 assert.equal(summary.strategy, 'composition');
 assert.equal(summary.recipeId, 'query-summary-table');
 assert.equal(summary.availability, 'available');
+
+const overview = resolvePageStrategy('做一个账户查询、当前账户总览和明细列表页面', root);
+assert.equal(overview.strategy, 'composition');
+assert.equal(overview.recipeId, 'query-overview-table');
+assert.equal(overview.availability, 'available');
+
+const currentAccountList = resolvePageStrategy('查询当前账户的流水记录', root);
+assert.equal(currentAccountList.strategy, 'legacy-adapter');
+
+const combined = resolvePageStrategy('做一个账户查询，展示当前账户总览、查询结果汇总和明细列表', root);
+assert.equal(combined.strategy, 'composition');
+assert.equal(combined.recipeId, 'query-overview-summary-table');
 
 const workflow = resolvePageStrategy('从查询列表进入分账步骤页，提交后进入分账结果页', root);
 assert.equal(workflow.strategy, 'composition');

@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "modelVersion": "2026.08.18.1",
+  "modelVersion": "2026.08.31.1",
   "system": "easy-account",
   "skeletonRules": [
     {
       "skeleton": "query-workbench",
-      "allowedRegions": ["query", "summary", "table", "action", "detail-drawer"],
+      "allowedRegions": ["query", "overview", "summary", "table", "action", "detail-drawer"],
       "requiredRegions": ["query", "table"],
-      "order": ["query", "summary", "table", "action"],
-      "constraints": ["summary requires query", "table is the only primary result region"]
+      "order": ["query", "overview", "summary", "table", "action"],
+      "constraints": ["overview appears above query conditions", "summary appears below query conditions", "table is the only primary result region"]
     },
     {
       "skeleton": "form-workflow",
@@ -19,9 +19,9 @@
     },
     {
       "skeleton": "detail-workbench",
-      "allowedRegions": ["detail", "summary", "table", "action"],
+      "allowedRegions": ["detail", "overview", "table", "action"],
       "requiredRegions": ["detail"],
-      "order": ["summary", "detail", "table", "action"],
+      "order": ["overview", "detail", "table", "action"],
       "constraints": ["embedded table must belong to detail or be explicitly linked"]
     },
     {
@@ -34,10 +34,24 @@
   ],
   "recipes": [
     {
+      "id": "query-overview-table",
+      "skeleton": "query-workbench",
+      "regions": ["query", "overview", "table"],
+      "capabilities": ["query.basic", "overview.metrics", "table.flat", "table.pagination"],
+      "runtimeStatus": "implemented"
+    },
+    {
       "id": "query-summary-table",
       "skeleton": "query-workbench",
       "regions": ["query", "summary", "table"],
-      "capabilities": ["query.basic", "summary.metrics", "summary.aggregate", "table.flat", "table.pagination"],
+      "capabilities": ["query.basic", "summary.metrics", "summary.aggregate", "binding.queryToSummary", "table.flat", "table.pagination"],
+      "runtimeStatus": "implemented"
+    },
+    {
+      "id": "query-overview-summary-table",
+      "skeleton": "query-workbench",
+      "regions": ["query", "overview", "summary", "table"],
+      "capabilities": ["query.basic", "overview.metrics", "summary.metrics", "summary.aggregate", "binding.queryToSummary", "table.flat", "table.pagination"],
       "runtimeStatus": "implemented"
     },
     {

@@ -33,7 +33,15 @@ function parseThresholds(sources) {
   const drawerMaxFields = Number(thresholdRule[2]);
   const queryRule = source.match(/EA-TPL-003[\s\S]*?(?:不超过|最多)\s*(\d+)\s*(?:项|个)/);
   if (!queryRule) throw new Error('EA-TPL-003 query field limit could not be parsed from director-rules.');
-  return { modalMaxFields, drawerMaxFields, pageMinFields: drawerMaxFields + 1, queryBasicMaxFields: Number(queryRule[1]) };
+  const queryCollapseRule = source.match(/EA-TPL-003[^\n]*?普通查询列表的条件超过\s*(\d+)\s*个时/);
+  if (!queryCollapseRule) throw new Error('EA-TPL-003 query collapse threshold could not be parsed from director-rules.');
+  return {
+    modalMaxFields,
+    drawerMaxFields,
+    pageMinFields: drawerMaxFields + 1,
+    queryBasicMaxFields: Number(queryRule[1]),
+    queryCollapseThreshold: Number(queryCollapseRule[1])
+  };
 }
 
 export function readDirectorRules(root = process.cwd()) {
@@ -47,7 +55,10 @@ export function readDirectorRules(root = process.cwd()) {
     thresholds,
     formPresentation: { modalMaxFields: thresholds.modalMaxFields, drawerMaxFields: thresholds.drawerMaxFields, pageMinFields: thresholds.pageMinFields },
     detailPresentation: { listDefault: 'drawer', complexFallback: 'page' },
-    query: { basicMaxFields: thresholds.queryBasicMaxFields }
+    query: {
+      basicMaxFields: thresholds.queryBasicMaxFields,
+      collapseThreshold: thresholds.queryCollapseThreshold
+    }
   };
   return { files: RULE_FILES.map((file) => `${RULE_DIR}/${file}`), rules, runtimePolicy };
 }

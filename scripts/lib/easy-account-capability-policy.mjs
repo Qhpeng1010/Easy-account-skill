@@ -33,15 +33,22 @@ export function resolvePageStrategy(request, root = process.cwd()) {
   // Require an explicit stage, result, review or tab transition signal before routing
   // to a composition recipe; this keeps ordinary split-account lists on the legacy path.
   const hasWorkflow = includesAny(source, ['步骤', '工作流', '复核', '新标签页', '结果页', '提交成功', '处理结果']);
-  const hasSummary = includesAny(source, ['统计', '汇总', '指标', '总数', '余额合计']);
+  const hasGenericSummary = includesAny(source, ['统计', '汇总', '指标', '总数']);
+  const hasOverview = includesAny(source, ['总览', '概览'])
+    || (hasGenericSummary && includesAny(source, ['当前对象', '当前账户', '当前企业']));
+  const hasResultSummary = includesAny(source, ['查询结果汇总', '查询结果统计', '结果汇总', '结果统计', '统计查询结果', '合计']);
   const hasForm = includesAny(source, ['表单', '新增', '新建', '编辑', '提交']);
   const recipe = hasQuery && hasWorkflow
     ? model.rules.recipes.find((item) => item.id === 'list-open-tab-workflow')
     : hasForm && hasWorkflow
       ? model.rules.recipes.find((item) => item.id === 'submission-review-result')
-      : hasQuery && hasSummary
-        ? model.rules.recipes.find((item) => item.id === 'query-summary-table')
-        : null;
+      : hasQuery && hasOverview && hasResultSummary
+        ? model.rules.recipes.find((item) => item.id === 'query-overview-summary-table')
+        : hasQuery && hasOverview
+          ? model.rules.recipes.find((item) => item.id === 'query-overview-table')
+          : hasQuery && (hasResultSummary || hasGenericSummary)
+            ? model.rules.recipes.find((item) => item.id === 'query-summary-table')
+            : null;
 
   if (recipe) {
     const skeleton = recipe.skeleton || recipe.skeletons?.[0] || 'query-workbench';

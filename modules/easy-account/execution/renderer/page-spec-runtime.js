@@ -264,7 +264,7 @@
     const modalTitle = modalFormConfig?.title || rowModalAction?.label || primaryAction?.label || '操作';
     const fields = selectedView?.queryFields || baseFields;
     const queryTabs = views.some((item) => Array.isArray(item.queryFields));
-    const collapseThreshold = spec.list.query.collapseThreshold || 3;
+    const collapseThreshold = spec.directorPolicy?.query?.collapseThreshold || 3;
     const supportsCollapse = fields.length > collapseThreshold;
     const visibleFields = collapsed ? fields.slice(0, collapseThreshold) : fields;
     const viewRows = React.useMemo(() => {

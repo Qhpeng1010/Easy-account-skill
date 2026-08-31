@@ -184,6 +184,10 @@ export function validatePageSpec(spec, root = process.cwd()) {
   if (family === 'list') {
     const fields = spec.list?.query?.fields || [];
     validationIssue(errors, Array.isArray(fields) && fields.length > 0, 'list.query.fields must be a non-empty array.');
+    if (spec.list?.query?.collapseThreshold !== undefined
+      && spec.list.query.collapseThreshold !== director.runtimePolicy.query.collapseThreshold) {
+      errors.push(`list.query.collapseThreshold must match the fixed director rule value ${director.runtimePolicy.query.collapseThreshold}.`);
+    }
     if (fields.length > director.runtimePolicy.query.basicMaxFields && spec.content?.capabilities?.includes('query.basic')) {
       errors.push(`list.query.fields exceeds director rule maximum of ${director.runtimePolicy.query.basicMaxFields}.`);
     }

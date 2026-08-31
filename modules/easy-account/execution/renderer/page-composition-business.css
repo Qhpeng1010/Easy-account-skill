@@ -30,17 +30,25 @@
 .ea-composition-query-grid .ant-form-item { min-width: 0; margin-bottom: 0; }
 .ea-composition-query-actions { grid-column: 4; display: flex; align-items: flex-end; justify-content: flex-end; gap: 8px; }
 .ea-composition-query-expand-button { display: inline-flex; align-items: center; gap: 4px; padding-left: 8px; padding-right: 0; }
-.ea-composition-query-summary { margin: 32px 0 24px; padding: 0 0 20px; }
-.ea-composition-query-summary-heading { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
-.ea-composition-query-summary-heading h2 { margin: 0; color: var(--ea-page-text-1); font-size: 16px; line-height: 24px; font-weight: 600; }
-.ea-composition-query-summary-heading .ant-btn { flex: 0 0 auto; height: 32px; }
+.ea-composition-query-overview { margin: 32px 0 24px; border-bottom: 1px solid #EDEDED; padding: 0 0 20px; }
+.ea-composition-query-overview-heading { min-height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.ea-composition-query-overview-heading h2 { margin: 0; color: var(--ea-page-text-1); font-size: 16px; line-height: 24px; font-weight: 600; }
+.ea-composition-query-overview-heading .ant-btn { flex: 0 0 auto; height: 32px; }
 .ea-composition-query-title { margin: 0 0 16px; color: var(--ea-page-text-1); font-size: 16px; line-height: 24px; font-weight: 600; }
-.ea-composition-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-.ea-composition-summary .ant-statistic { min-width: 0; padding: 0 24px; }
-.ea-composition-summary .ant-statistic:first-child { padding-left: 0; }
-.ea-composition-summary .ant-statistic-content { overflow-wrap: anywhere; word-break: break-word; }
-.ea-composition-detail-summary { margin-bottom: 20px; border-bottom: 1px solid var(--ea-page-border); padding-bottom: 20px; }
-.ea-composition-detail-summary h2 { margin: 0 0 16px; color: var(--ea-page-text-1); font-size: 16px; line-height: 24px; font-weight: 600; }
+.ea-composition-statistics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.ea-composition-overview-statistics .ant-statistic { min-width: 0; padding: 0 24px; }
+.ea-composition-overview-statistics .ant-statistic:first-child { padding-left: 0; }
+.ea-composition-summary-statistics { gap: 12px; }
+.ea-composition-summary-statistics .ant-statistic { min-width: 0; border-radius: 6px; background: var(--ea-page-white); padding: 16px; }
+.ea-composition-statistics .ant-statistic-content { overflow-wrap: anywhere; word-break: break-word; }
+.ea-composition-query-result-summary { min-width: 0; }
+.ea-composition-inline-summary { min-width: 0; display: flex; flex: 1 1 auto; align-items: center; flex-wrap: wrap; color: var(--ea-page-text-1); font-size: 14px; line-height: 22px; letter-spacing: 0; }
+.ea-composition-inline-summary-label { font-weight: 600; }
+.ea-composition-inline-summary-metric { white-space: nowrap; }
+.ea-composition-inline-summary-value { color: var(--ea-page-brand); font-variant-numeric: tabular-nums; font-weight: 500; }
+.ea-composition-inline-summary-separator { margin: 0 8px; color: #e4e4e7; }
+.ea-composition-detail-overview { margin-bottom: 20px; border-bottom: 1px solid var(--ea-page-border); padding-bottom: 20px; }
+.ea-composition-detail-overview h2 { margin: 0 0 16px; color: var(--ea-page-text-1); font-size: 16px; line-height: 24px; font-weight: 600; }
 .ea-composition-table .ant-table-container { overflow: hidden; border: 1px solid var(--ea-table-border); }
 .ea-composition-table .ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell { box-sizing: border-box; height: 42px; padding: 10px 16px !important; background: var(--ea-table-header); color: var(--ea-table-header-text); line-height: 22px; }
 .ea-composition-table .ant-table-wrapper .ant-table-cell { padding: 10px 16px !important; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
@@ -58,9 +66,9 @@
 .ea-composition-overlay-drawer .ea-composition-page { padding: 0; }
 .ea-composition-overlay-drawer .ea-composition-module { padding: 0; border-radius: 0; }
 .ea-composition-overlay-footer { display: flex; align-items: center; justify-content: flex-end; width: 100%; gap: 8px; }
-.ea-composition-summary-management-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; padding-top: 4px; }
-.ea-composition-summary-management-form .ant-form-item { min-width: 0; margin-bottom: 16px; }
-.ea-composition-summary-management-form-item--full { grid-column: 1 / -1; }
+.ea-composition-overview-management-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; padding-top: 4px; }
+.ea-composition-overview-management-form .ant-form-item { min-width: 0; margin-bottom: 16px; }
+.ea-composition-overview-management-form-item--full { grid-column: 1 / -1; }
 .ea-composition-column-settings { display: grid; gap: 8px; min-width: 180px; }
 .ea-composition-column-settings strong { color: var(--ea-page-text-1); font-size: 13px; }
 .ea-composition-table-state { min-height: 120px; display: grid; place-items: center; align-content: center; gap: 8px; color: var(--ea-page-text-2); }
@@ -94,10 +102,11 @@
   .ant-form.ant-form-vertical .ea-composition-query-selector-grid--overview .ant-form-item-row { flex-flow: column nowrap; align-items: stretch; }
   .ant-form.ant-form-vertical .ea-composition-query-selector-grid--overview .ant-form-item-label { width: 100%; padding: 0 0 8px; }
   .ant-form.ant-form-vertical .ea-composition-query-selector-grid--overview .ant-form-item-label > label { height: auto; }
-  .ea-composition-summary { grid-template-columns: 1fr; gap: 16px; }
-  .ea-composition-summary-management-form { grid-template-columns: 1fr; }
-  .ea-composition-summary .ant-statistic { padding: 16px 0 0; }
-  .ea-composition-summary .ant-statistic:first-child { padding-top: 0; }
+  .ea-composition-statistics { grid-template-columns: 1fr; }
+  .ea-composition-overview-statistics { gap: 16px; }
+  .ea-composition-overview-management-form { grid-template-columns: 1fr; }
+  .ea-composition-overview-statistics .ant-statistic { padding: 16px 0 0; }
+  .ea-composition-overview-statistics .ant-statistic:first-child { padding-top: 0; }
   .ea-composition-form-group-fields { grid-template-columns: 1fr; }
   .ea-composition-pagination { align-items: flex-start; flex-direction: column; }
   .ea-composition-pagination .ant-pagination { margin: 0; }

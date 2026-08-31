@@ -11,6 +11,7 @@ const director = readDirectorRules(root);
 const interactionRules = readFileSync(resolve(root, 'modules/easy-account/director-rules/03-interaction-acceptance-rules.md'), 'utf8');
 assert.equal(director.runtimePolicy.thresholds.modalMaxFields, 6);
 assert.equal(director.runtimePolicy.thresholds.drawerMaxFields, 12);
+assert.equal(director.runtimePolicy.query.collapseThreshold, 3);
 assert.equal(resolveDetailPresentation(director.runtimePolicy), 'drawer');
 assert.deepEqual([6, 7, 12, 13].map((count) => resolveFormPresentation(count, director.runtimePolicy)), ['modal', 'drawer', 'drawer', 'page']);
 for (const id of ['EA-TPL-005', 'EA-TPL-007', 'EA-TPL-013', 'EA-INT-009']) assert.ok(director.runtimePolicy.ruleIds.includes(id), `missing ${id}`);
@@ -74,5 +75,11 @@ const legacy = {
 const legacyResult = validatePageSpec(legacy, root);
 assert.equal(legacyResult.valid, true, legacyResult.errors.join('\n'));
 assert.equal(legacyResult.directorRules.version, director.runtimePolicy.version);
+
+const overriddenLegacyCollapseThreshold = structuredClone(legacy);
+overriddenLegacyCollapseThreshold.list.query.collapseThreshold = 4;
+const overriddenLegacyCollapseThresholdResult = validatePageSpec(overriddenLegacyCollapseThreshold, root);
+assert.equal(overriddenLegacyCollapseThresholdResult.valid, false);
+assert.match(overriddenLegacyCollapseThresholdResult.errors.join('\n'), /collapseThreshold must match the fixed director rule value 3/);
 
 console.log('easy-account-director-rules: pass');

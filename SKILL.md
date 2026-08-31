@@ -55,6 +55,8 @@ description: 为易账通（同义名称：Yee账通、yee账通、Easy Account�
 - `modules/easy-account/execution/generation-policy.json` 决定页面家族和能力是否开放；规则存在不代表能力已开放。
 - `scripts/lib/easy-account-capability-policy.mjs` 负责统一策略解析：简单请求走 `legacy-adapter`，命中 recipe 的请求走组合式 Page Spec，未登记组合进入能力缺口。
 - `modules/easy-account/execution/capability-model/` 定义组合式页面的骨架、区域、能力、数据绑定和组合规则；其中 `model-only` 或 `declared-only` 能力不得宣称为可交付预览。
+- 普通查询条件的展开/收起阈值固定为 3，不由具体页面覆盖；超过 3 个普通查询字段时默认全部展开并显示“收起”，收起后只保留前 3 个。主对象 `selectorFields` 不计入普通查询字段数量，展开/收起必须保留已输入值。
+- 查询页统计必须按语义和数量拆分：`overview` 只表示当前主对象总览并位于普通查询条件上方，指标在总览区域内平铺；`summary` 只表示当前查询结果汇总。汇总指标不超过 3 条时替换查询列表标题，以 `14px` 的“查询汇总：标题 数值 单位｜…”展示，将数值设为主色并将 `｜` 分隔符设为 `#E4E4E7`；超过 3 条时位于完整查询条件模块下方、结果 Table 上方，以无灰色边框的独立圆角统计卡片展示，不显示区域标题或外层业务模块。不得互换语义、位置、样式或配置。
 - `modules/easy-account/shell/` 是固定框架层，业务页面只能挂载到内容插槽，不能重绘导航、多标签、页脚或侧栏。
 - Shell 中可见的一级菜单、二级菜单和顶部标签必须由当前用户需求及实际生成页面投影得到；不得把完整产品目录或示例标签默认渲染到单页预览。
 - 不引用 Boss Ledger 的 Shell、Logo、vendor、主题 CSS 或规则。

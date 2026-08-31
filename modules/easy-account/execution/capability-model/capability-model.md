@@ -5,8 +5,8 @@
 ## 四层模型
 
 1. **Skeleton**：稳定的任务结构，例如 `query-workbench`、`form-workflow` 和 `result-workflow`。
-2. **Region**：骨架中的业务区域，例如 `query`、`summary`、`table`、`step-form` 和 `result`。
-3. **Capability**：区域允许声明的行为，例如 `summary.aggregate`、`form.review` 或 `binding.rowToForm`。
+2. **Region**：骨架中的业务区域，例如 `query`、`overview`、`summary`、`table`、`step-form` 和 `result`。
+3. **Capability**：区域允许声明的行为，例如 `overview.metrics`、`summary.aggregate`、`form.review` 或 `binding.rowToForm`。
 4. **Binding / Transition**：声明数据如何在区域间传递、动作如何从一个页面进入另一个页面。
 
 机器可读文件：
@@ -29,6 +29,9 @@
 ## 组合原则
 
 - 需求先选择骨架，再选择区域；不要为每个业务组合新增整页模板。
+- `overview` 只描述当前选中企业、账户或其他主对象的数据总览，固定渲染在普通查询条件上方；对象选择器可以位于总览之前并通过 `binding.selectorToOverview` 联动。
+- `summary` 只描述本次查询结果的数量、金额或其他汇总口径，固定渲染在普通查询条件下方、结果表格上方，并通过 `binding.queryToSummary` 随查询结果更新。
+- 同一查询页可以同时声明 `overview` 和 `summary`，但不得用其中一个区域模拟另一个语义，也不得通过自由配置交换两者位置。
 - 区域顺序由 `composition-rules.json` 约束，不能任意拼接。
 - 数据绑定只允许声明式路径和有限变换，不允许在 Page Spec 中注入任意 JavaScript。
 - 新的业务流程优先登记为 recipe；只有出现新的任务结构时才新增 skeleton。
