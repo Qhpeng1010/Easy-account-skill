@@ -21,6 +21,17 @@
 .ea-module { min-width: 0; border-radius: 8px; background: var(--ea-page-white); padding: 16px; }
 .ea-query-module .ant-form-item { min-width: 0; margin-bottom: 0; }
 .ea-query-module .ant-form-item-label { padding-bottom: 8px; }
+.ea-query-module .ant-select,
+.ea-query-module .ant-cascader,
+.ea-query-module .ant-input-number,
+.ea-create-form .ant-select,
+.ea-create-form .ant-cascader,
+.ea-create-form .ant-input-number,
+.ea-page-form .ant-select,
+.ea-page-form .ant-cascader,
+.ea-page-form .ant-input-number { width: 100%; }
+.ea-create-form .ant-checkbox-group,
+.ea-page-form .ant-checkbox-group { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .ea-query-tabs > .ant-tabs-nav { box-sizing: border-box; margin: -16px -16px 16px; border-bottom: 1px solid var(--ea-table-border); border-radius: 8px 8px 0 0; background: var(--ea-tabs-surface); padding: 0 16px; }
 .ea-query-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .ea-query-actions { grid-column: 4; align-self: end; display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 32px; }

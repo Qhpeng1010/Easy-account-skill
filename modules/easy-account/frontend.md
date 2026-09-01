@@ -19,6 +19,7 @@
 - 预览必须实现需求中的核心交互，并覆盖 loading、empty、error 和 permission-denied。
 - 不依赖外部 CDN 或远程图片。
 - Page Spec 模式下，`preview.html`、`preview-app.js`、运行时、业务 CSS、Shell 文件、品牌资产和 vendor 均是派生产物；使用 `build-easy-account-page-spec.mjs` 生成。
+- 字段组件使用 `execution/form-field-contract.md` 的开放协议；组件级需求不经过页面组合 recipe 的能力门禁。运行时只接受 JSON 可序列化配置，不执行 Page Spec 中的脚本或函数。
 - 完整产品导航只能作为 `menuCatalog` 匹配参考，不直接渲染。构建器必须按当前 Page Spec 的 `shell.primaryNav`、`shell.sideNav` 及已注册的 `shell.pages` 生成可见菜单和标签。
 - 单页需求默认只显示一个一级菜单、一个二级菜单和当前页标签；只有用户需求明确包含多页时才增加对应入口。
 - 表单、详情、结果和 Dashboard 未经对应黄金案例验证前，保持在 generation policy 的 shadow、workflow-only 或 legacy 模式。

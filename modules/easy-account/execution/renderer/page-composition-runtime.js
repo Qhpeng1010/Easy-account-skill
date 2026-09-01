@@ -105,25 +105,128 @@
     return `"${String(value ?? '').replaceAll('"', '""')}"`;
   }
 
-  function fieldControl(field) {
-    const common = { placeholder: field.placeholder || `请输入${field.label}`, disabled: field.disabled };
-    if (field.control === 'select') return h(Select, { ...common, allowClear: true, options: field.options || [] });
-    if (field.control === 'radio') return h(Radio.Group, { disabled: field.disabled, options: field.options || [] });
-    if (field.control === 'upload') return h(Upload, { beforeUpload: () => false, maxCount: field.maxCount || 1 }, h(Button, null, field.buttonLabel || '上传文件'));
-    if (field.control === 'date') return h(DatePicker, { ...common, style: { width: '100%' } });
-    if (field.control === 'date-range') return h(DatePicker.RangePicker, { ...common, style: { width: '100%' } });
-    if (field.control === 'textarea') return h(Input.TextArea, { ...common, rows: field.rows || 3 });
-    return h(Input, { ...common, inputMode: field.control === 'number' ? 'decimal' : undefined });
+  function formValue(values, path) {
+    return String(path || '').split('.').filter(Boolean).reduce((current, key) => current?.[key], values);
   }
 
-  function fieldRules(field) {
-    return field.required ? [{ required: true, message: field.validationMessage || `请填写${field.label}` }] : [];
+  function sameValue(left, right) {
+    if (left === right) return true;
+    if (left === undefined || left === null || right === undefined || right === null) return false;
+    return String(left) === String(right);
+  }
+
+  function conditionMatches(condition, values) {
+    if (!condition) return true;
+    if (Array.isArray(condition)) return condition.every((item) => conditionMatches(item, values));
+    if (Array.isArray(condition.all)) return condition.all.every((item) => conditionMatches(item, values));
+    if (Array.isArray(condition.any)) return condition.any.some((item) => conditionMatches(item, values));
+    if (condition.not) return !conditionMatches(condition.not, values);
+    const current = formValue(values, condition.field);
+    const expected = condition.value !== undefined ? condition.value : condition.values;
+    const list = (value) => Array.isArray(value) ? value : [value];
+    switch (condition.operator || 'equals') {
+      case 'notEquals': return !sameValue(current, expected);
+      case 'in': return list(expected).some((item) => sameValue(current, item));
+      case 'notIn': return !list(expected).some((item) => sameValue(current, item));
+      case 'includes': return list(current).some((item) => sameValue(item, expected));
+      case 'includesAny': return list(expected).some((item) => list(current).some((entry) => sameValue(entry, item)));
+      case 'includesAll': return list(expected).every((item) => list(current).some((entry) => sameValue(entry, item)));
+      case 'empty': return current === undefined || current === null || current === '' || (Array.isArray(current) && current.length === 0);
+      case 'notEmpty': return !(current === undefined || current === null || current === '' || (Array.isArray(current) && current.length === 0));
+      case 'truthy': return Boolean(current);
+      case 'falsy': return !current;
+      default: return sameValue(current, expected);
+    }
+  }
+
+  function fieldOptions(field, values) {
+    if (!field.optionsBy) return field.options || [];
+    const source = formValue(values, field.optionsBy.field);
+    const key = Array.isArray(source) ? source.join('|') : String(source ?? '');
+    return field.optionsBy.map?.[key] || field.optionsBy.fallback || field.options || [];
+  }
+
+  function resolveComponent(name) {
+    return String(name || '').split('.').filter(Boolean).reduce((current, key) => current?.[key], antd);
+  }
+
+  function fieldControl(field, values = {}) {
+    const placeholder = field.placeholder || field.props?.placeholder || (['select', 'cascader', 'tree-select', 'date', 'date-range', 'time', 'time-range'].includes(field.control) ? `请选择${field.label}` : `请输入${field.label}`);
+    const disabled = Boolean(field.disabled || field.props?.disabled || (field.disabledWhen && conditionMatches(field.disabledWhen, values)));
+    const options = fieldOptions(field, values);
+    const common = { ...(field.props || {}), placeholder, disabled };
+    if (field.control === 'select') return h(Select, { ...common, allowClear: field.allowClear !== false, mode: field.mode || (field.multiple ? 'multiple' : common.mode), options });
+    if (field.control === 'cascader') return h(antd.Cascader, { ...common, allowClear: field.allowClear !== false, multiple: field.multiple ?? common.multiple, options });
+    if (field.control === 'radio') return h(Radio.Group, { ...common, options });
+    if (field.control === 'checkbox-group') return h(Checkbox.Group, { ...common, options });
+    if (field.control === 'checkbox') return h(Checkbox, common, field.text || field.checkboxLabel || null);
+    if (field.control === 'switch') return h(antd.Switch, { ...common, checkedChildren: field.checkedLabel, unCheckedChildren: field.uncheckedLabel });
+    if (field.control === 'tree-select') return h(antd.TreeSelect, { ...common, allowClear: field.allowClear !== false, multiple: field.multiple ?? common.multiple, treeCheckable: field.treeCheckable ?? common.treeCheckable, treeData: field.treeData || options });
+    if (field.control === 'tree') return h(antd.Tree, { ...common, checkable: true, selectable: false, defaultExpandAll: field.defaultExpandAll !== false, treeData: field.treeData || [] });
+    if (field.control === 'upload') return h(Upload, { ...(field.props || {}), beforeUpload: () => false, maxCount: field.maxCount || field.props?.maxCount || 1, accept: field.accept || field.props?.accept }, h(Button, null, field.buttonLabel || '上传文件'));
+    if (field.control === 'date') return h(DatePicker, { ...common, format: field.format || common.format || 'YYYY-MM-DD', style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'date-range') return h(DatePicker.RangePicker, { ...common, format: field.format || common.format || 'YYYY-MM-DD', style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'time') return h(antd.TimePicker, { ...common, format: field.format || common.format || 'HH:mm', style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'time-range') return h(antd.TimePicker.RangePicker, { ...common, format: field.format || common.format || 'HH:mm', style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'textarea') return h(Input.TextArea, { ...common, rows: field.rows || common.rows || 3, showCount: field.showCount ?? Boolean(field.maxLength ?? common.maxLength), maxLength: field.maxLength ?? common.maxLength });
+    if (field.control === 'number') return h(antd.InputNumber, { ...common, min: field.min ?? common.min, max: field.max ?? common.max, precision: field.precision ?? common.precision, style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'slider') return h(antd.Slider, { ...common, min: field.min ?? common.min, max: field.max ?? common.max, step: field.step ?? common.step });
+    if (field.control === 'rate') return h(antd.Rate, common);
+    if (field.control === 'autocomplete') return h(antd.AutoComplete, { ...common, options });
+    if (field.control === 'mentions') return h(antd.Mentions, { ...common, options });
+    const Component = field.component ? resolveComponent(field.component) : Input;
+    return h(Component || Input, { ...common, options });
+  }
+
+  function fieldBinding(field) {
+    if (field.control === 'tree') return { valuePropName: 'checkedKeys', trigger: 'onCheck' };
+    if (field.control === 'checkbox' || field.control === 'switch') return { valuePropName: 'checked' };
+    if (field.control === 'upload') return { valuePropName: 'fileList', getValueFromEvent: (event) => Array.isArray(event) ? event : event?.fileList };
+    return {};
+  }
+
+  function fieldRules(field, values = {}) {
+    const disabled = field.disabled || field.props?.disabled || (field.disabledWhen && conditionMatches(field.disabledWhen, values));
+    const required = !disabled && (field.required || (field.requiredWhen && conditionMatches(field.requiredWhen, values)));
+    const rules = required ? [{ required: true, message: field.validationMessage || `请填写${field.label}` }] : [];
+    if (field.validationPattern) rules.push({ pattern: new RegExp(field.validationPattern), message: field.patternMessage || `${field.label}格式不正确` });
+    return rules;
+  }
+
+  function renderField(form, field, itemProps = {}) {
+    return h(Form.Item, { key: `watch-${field.key}`, noStyle: true, shouldUpdate: true }, () => {
+      const values = form.getFieldsValue(true);
+      if (field.visibleWhen && !conditionMatches(field.visibleWhen, values)) return null;
+      return h(Form.Item, {
+        ...itemProps,
+        ...fieldBinding(field),
+        key: field.key,
+        label: field.label,
+        name: field.key,
+        preserve: field.preserve !== false,
+        rules: fieldRules(field, values)
+      }, fieldControl(field, values));
+    });
+  }
+
+  function normalizeDependentFields(form, fields, values) {
+    const resets = {};
+    (fields || []).forEach((field) => {
+      const current = values[field.key];
+      if (field.visibleWhen && !conditionMatches(field.visibleWhen, values) && field.preserveWhenHidden !== true && current !== undefined) resets[field.key] = undefined;
+      if (field.optionsBy && field.resetWhenDependenciesChange !== false && current !== undefined) {
+        const allowed = fieldOptions(field, values).map((option) => option?.value);
+        const selected = Array.isArray(current) ? current : [current];
+        if (selected.some((value) => !allowed.some((item) => sameValue(item, value)))) resets[field.key] = undefined;
+      }
+    });
+    if (Object.keys(resets).length) form.setFieldsValue(resets);
   }
 
   function matches(row, fields, filters) {
     return fields.every((field) => {
       const expected = filters[field.key];
-      if (expected === undefined || expected === null || expected === '') return true;
+      if (expected === undefined || expected === null || expected === '' || (Array.isArray(expected) && expected.length === 0)) return true;
       const raw = row[field.filterKey || field.key];
       const actual = raw && typeof raw === 'object' ? raw.value ?? raw.text ?? raw.minor : raw;
       if (field.control === 'date-range' && Array.isArray(expected) && expected.length === 2) {
@@ -132,7 +235,14 @@
         const current = String(actual || '').slice(0, 10);
         return Boolean(current && start && end && current >= start && current <= end);
       }
-      if (field.control === 'select') return String(actual) === String(expected);
+      if (['select', 'cascader', 'checkbox-group', 'tree-select'].includes(field.control) && Array.isArray(expected)) {
+        const selected = field.control === 'cascader' && !field.multiple ? expected.slice(-1) : expected;
+        const source = Array.isArray(actual) ? actual : [actual];
+        return field.filterMode === 'all'
+          ? selected.every((item) => source.some((entry) => sameValue(entry, item)))
+          : selected.some((item) => source.some((entry) => sameValue(entry, item)));
+      }
+      if (field.control === 'select') return sameValue(actual, expected);
       return String(actual || '').toLowerCase().includes(String(expected).toLowerCase());
     });
   }
@@ -368,6 +478,7 @@
           style: combinedOverview ? { '--ea-overview-metric-count': Math.max(overviewMetrics.length, 1) } : undefined,
           initialValues: queryInitialValues(config, activeTab),
           onValuesChange: (changed, values) => {
+            normalizeDependentFields(form, filterFields, values);
             if (overviewSelectorKey && Object.hasOwn(changed, overviewSelectorKey)) {
               setFilters(values);
               setFailure('');
@@ -378,7 +489,7 @@
           onFinish: runQuery
         },
           selectorFields.length ? h('div', { className: `ea-composition-query-selector-grid${combinedOverview ? ' ea-composition-query-selector-grid--overview' : ''}` },
-            ...selectorFields.map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key, rules: fieldRules(field) }, fieldControl(field)))) : null,
+            ...selectorFields.map((field) => renderField(form, field))) : null,
           overviewVisible ? h('section', { className: 'ea-composition-query-overview', 'aria-label': overview.config?.title || '对象总览' },
             h('div', { className: 'ea-composition-query-overview-heading' },
               h('h2', null, overview.config?.title || '对象总览'),
@@ -388,22 +499,26 @@
               open: managementOpen,
               title: management.title || management.label || '信息管理',
               width: management.width || 640,
+              centered: true,
+              styles: { body: { maxHeight: 'calc(80vh - 146px)', overflowY: 'auto' } },
               destroyOnClose: true,
               onCancel: () => { managementForm.resetFields(); setManagementOpen(false); },
               footer: h('div', { className: 'ea-composition-overlay-footer' },
                 h(Button, { onClick: () => { managementForm.resetFields(); setManagementOpen(false); } }, '取消'),
                 h(Button, { type: 'primary', onClick: createRule }, management.submitLabel || '新增'))
-            }, h(Form, { form: managementForm, layout: 'vertical', className: 'ea-composition-overview-management-form', initialValues: management.initialValues || {} },
-              ...(management.fields || []).map((field) => h(Form.Item, {
-                key: field.key,
-                className: field.fullSpan ? 'ea-composition-overview-management-form-item--full' : undefined,
-                label: field.label,
-                name: field.key,
-                rules: fieldRules(field)
-              }, fieldControl(field))))) : null) : null,
+            }, h(Form, {
+              form: managementForm,
+              layout: 'vertical',
+              className: 'ea-composition-overview-management-form',
+              initialValues: management.initialValues || {},
+              onValuesChange: (changed, values) => normalizeDependentFields(managementForm, management.fields || [], values)
+            }, ...(management.fields || []).map((field) => renderField(managementForm, field, {
+              className: field.fullSpan ? 'ea-composition-overview-management-form-item--full' : undefined,
+              extra: field.help
+            })))) : null) : null,
           config.queryTitle && !combinedOverview ? h('h2', { className: 'ea-composition-query-title' }, config.queryTitle) : null,
           h('div', { className: 'ea-composition-query-grid' },
-            ...visibleFields.map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key, rules: fieldRules(field) }, fieldControl(field))),
+            ...visibleFields.map((field) => renderField(form, field)),
             h('div', { className: 'ea-composition-query-actions' },
               h(Button, { disabled: loading, onClick: resetQuery }, '重置'),
               h(Button, { type: 'primary', htmlType: 'submit', loading }, '查询'),
@@ -493,6 +608,8 @@
     const [current, setCurrent] = React.useState(0);
     const [dirty, setDirty] = React.useState(false);
     const currentStep = steps[current] || { fields: [] };
+    const allFields = steps.flatMap((step) => step.fields || []);
+    const onFormValuesChange = (changed, values) => { normalizeDependentFields(form, allFields, values); setDirty(true); };
     const submit = () => form.validateFields().then((values) => {
       const transition = (page.transitions || []).find((item) => item.event === 'submitted');
       onTransition(transition?.id, { values, submission: { status: 'success', values } });
@@ -508,10 +625,10 @@
     if (grouped) return h('div', { className: 'ea-composition-page ea-composition-form-page' },
       h('div', { className: 'ea-composition-form-back-row' },
         h(Button, { type: 'text', className: 'ea-composition-form-back', icon: ArrowLeftOutlined ? h(ArrowLeftOutlined) : null, onClick: cancel }, config.backLabel || '返回')),
-      h(Form, { form, layout: 'vertical', initialValues: context[page.id] || config.initialValues || {}, onValuesChange: () => setDirty(true) },
+      h(Form, { form, layout: 'vertical', initialValues: context[page.id] || config.initialValues || {}, onValuesChange: onFormValuesChange },
         h('div', { className: 'ea-composition-form-groups' }, ...(steps || []).map((step) => h('section', { key: step.title, className: 'ea-composition-module ea-composition-form-group' },
           h('h2', null, step.title),
-          h('div', { className: 'ea-composition-form-group-fields' }, ...(step.fields || []).map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key, rules: fieldRules(field) }, fieldControl(field))))))),
+          h('div', { className: 'ea-composition-form-group-fields' }, ...(step.fields || []).map((field) => renderField(form, field)))))),
         review ? h('section', { className: 'ea-composition-module ea-composition-review' }, h('h2', null, review.config?.title || '提交前复核'), h(Descriptions, { column: 2, size: 'small', items: (review.config?.fields || []).map((field) => ({ key: field.key, label: field.label, children: valueAt(form.getFieldsValue(), field.source || field.key) || '-' })) })) : null,
         h('div', { className: 'ea-composition-form-sticky-actions' },
           h('div', { className: 'ea-composition-actions' },
@@ -523,8 +640,8 @@
           h(Button, { type: 'text', className: 'ea-composition-form-back', icon: ArrowLeftOutlined ? h(ArrowLeftOutlined) : null, onClick: cancel }, config.backLabel || '返回'),
           h('h1', null, config.title || page.label)),
         h(Steps, { className: 'ea-composition-steps', current, items: steps.map((step) => ({ title: step.title })) }),
-        h(Form, { form, layout: 'vertical', initialValues: context[page.id] || config.initialValues || {}, onValuesChange: () => setDirty(true) },
-          ...(currentStep.fields || []).map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key, rules: fieldRules(field) }, fieldControl(field))),
+        h(Form, { form, layout: 'vertical', initialValues: context[page.id] || config.initialValues || {}, onValuesChange: onFormValuesChange },
+          ...(currentStep.fields || []).map((field) => renderField(form, field)),
           current === steps.length - 1 && review ? h('section', { className: 'ea-composition-review' }, h('h2', null, review.config?.title || '提交前复核'), h(Descriptions, { column: 1, size: 'small', items: (review.config?.fields || []).map((field) => ({ key: field.key, label: field.label, children: valueAt(form.getFieldsValue(), field.source || field.key) || '-' })) })) : null),
         h('div', { className: 'ea-composition-actions' },
           action?.config?.cancelLabel ? h(Button, { onClick: cancel }, action.config.cancelLabel) : null,

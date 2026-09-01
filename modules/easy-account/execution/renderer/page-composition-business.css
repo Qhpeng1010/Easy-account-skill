@@ -18,6 +18,10 @@
 .ea-composition-heading h1,
 .ea-composition-heading h2 { margin: 0; color: var(--ea-page-text-1); font-size: 16px; line-height: 24px; font-weight: 600; }
 .ea-composition-query-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.ea-composition-page .ant-select,
+.ea-composition-page .ant-cascader,
+.ea-composition-page .ant-input-number { width: 100%; }
+.ea-composition-page .ant-checkbox-group { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .ea-composition-query-tabs > .ant-tabs-nav { box-sizing: border-box; margin: -16px -16px 16px; border-bottom: 1px solid var(--ea-table-border); border-radius: 8px 8px 0 0; background: var(--ea-tabs-surface); padding: 0 16px; }
 .ea-composition-query-tabs .ant-tabs-nav::before { display: none; }
 .ea-composition-query-selector-grid { display: grid; grid-template-columns: minmax(240px, 480px); gap: 16px; }
@@ -69,6 +73,7 @@
 .ea-composition-overview-management-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; padding-top: 4px; }
 .ea-composition-overview-management-form .ant-form-item { min-width: 0; margin-bottom: 16px; }
 .ea-composition-overview-management-form-item--full { grid-column: 1 / -1; }
+.ea-composition-overview-management-form .ant-upload-wrapper { width: 100%; }
 .ea-composition-column-settings { display: grid; gap: 8px; min-width: 180px; }
 .ea-composition-column-settings strong { color: var(--ea-page-text-1); font-size: 13px; }
 .ea-composition-table-state { min-height: 120px; display: grid; place-items: center; align-content: center; gap: 8px; color: var(--ea-page-text-2); }

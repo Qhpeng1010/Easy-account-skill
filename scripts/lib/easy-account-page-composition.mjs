@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { assertRuleRefs, readDirectorRules, resolveDetailPresentation, resolveFormPresentation } from './easy-account-director-rules.mjs';
+import { validateFormFields } from './easy-account-form-fields.mjs';
 
 const MODEL_ROOT = 'modules/easy-account/execution/capability-model';
 const CHANGE_ID_PATTERN = /^[0-9]{8}-[^/\s]+$/;
@@ -49,6 +50,20 @@ function validateVisibleTabKeys(errors, regions, region, location) {
   if (!unique(visibleTabKeys)) issue(errors, `${location}.config.visibleTabKeys must not contain duplicate Tab keys.`);
   const unknownTabKeys = visibleTabKeys.filter((key) => !queryTabKeys.includes(key));
   if (unknownTabKeys.length) issue(errors, `${location}.config.visibleTabKeys contains unknown query Tab keys: ${unknownTabKeys.join(', ')}.`);
+}
+
+function validateRegionFormFields(errors, region, location) {
+  const config = region?.config || {};
+  if (region?.type === 'query') {
+    errors.push(...validateFormFields(config.selectorFields, `${location}.config.selectorFields`));
+    errors.push(...validateFormFields(config.fields, `${location}.config.fields`));
+    (config.tabs || []).forEach((tab, index) => {
+      errors.push(...validateFormFields(tab?.selectorFields, `${location}.config.tabs[${index}].selectorFields`));
+      errors.push(...validateFormFields(tab?.fields, `${location}.config.tabs[${index}].fields`));
+    });
+  }
+  if (region?.type === 'overview') errors.push(...validateFormFields(config.management?.fields, `${location}.config.management.fields`));
+  if (region?.type === 'step-form') (config.steps || []).forEach((step, index) => errors.push(...validateFormFields(step?.fields, `${location}.config.steps[${index}].fields`)));
 }
 
 export function readCompositionModel(root = process.cwd()) {
@@ -117,6 +132,7 @@ export function validatePageComposition(spec, root = process.cwd(), options = {}
     if (!regionDefinition) issue(errors, `${location}.type is not registered: ${region.type || 'missing'}.`);
     if (rule && !rule.allowedRegions.includes(region.type)) issue(errors, `${location}.type ${region.type} is not allowed by ${spec.skeleton}.`);
     if (!Array.isArray(region.capabilities) || region.capabilities.length === 0 || !unique(region.capabilities)) issue(errors, `${location}.capabilities must be a non-empty unique array.`);
+    validateRegionFormFields(errors, region, location);
     for (const capabilityId of region.capabilities || []) {
       const capability = capabilities.get(capabilityId);
       if (!capability) issue(errors, `${location} declares unknown capability ${capabilityId}.`);
@@ -139,8 +155,10 @@ export function validatePageComposition(spec, root = process.cwd(), options = {}
       if (!managesOverview && management) issue(errors, `${location}.config.management requires overview.manage.`);
       if (managesOverview) {
         const fields = management?.fields;
-        if (!Array.isArray(fields) || fields.length === 0 || fields.length > 6) {
-          issue(errors, `${location}.config.management.fields must contain 1 to 6 fields.`);
+        if (!Array.isArray(fields) || fields.length === 0) {
+          issue(errors, `${location}.config.management.fields must contain at least 1 field.`);
+        } else if (fields.length > 6 && management.preserveStructure !== true) {
+          issue(errors, `${location}.config.management with more than 6 fields requires preserveStructure=true to retain the existing Modal.`);
         }
       }
       const metrics = [
@@ -208,7 +226,7 @@ export function validatePageComposition(spec, root = process.cwd(), options = {}
       issue(errors, `${location} must be an object.`);
       return;
     }
-    validateProperties(errors, transition, ['id', 'from', 'event', 'to', 'requires', 'bindingIds', 'presentation'], location);
+    validateProperties(errors, transition, ['id', 'from', 'event', 'to', 'requires', 'bindingIds', 'presentation', 'preserveStructure'], location);
     if (!transition.id || !transition.event || !transition.to) issue(errors, `${location} requires id, event and to.`);
     if (!skeletons.has(transition.to) && !workflowPageIds.has(transition.to)) issue(errors, `${location}.to must reference a registered skeleton or workflow page.`);
     if (!Array.isArray(transition.requires) || transition.requires.length === 0) issue(errors, `${location}.requires must declare registered capabilities.`);
@@ -271,7 +289,7 @@ export function validatePageComposition(spec, root = process.cwd(), options = {}
     const expected = target.skeleton === 'detail-workbench'
       ? resolveDetailPresentation(director.runtimePolicy)
       : target.skeleton === 'form-workflow' ? resolveFormPresentation(countFields(target), director.runtimePolicy) : 'page';
-    if (transition.presentation && transition.presentation !== expected) {
+    if (transition.presentation && transition.presentation !== expected && transition.preserveStructure !== true) {
       issue(errors, `transitions.${transition.id}.presentation ${transition.presentation} conflicts with director rules; expected ${expected}.`);
     }
   }

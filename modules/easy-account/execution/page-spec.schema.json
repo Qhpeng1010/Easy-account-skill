@@ -51,9 +51,13 @@
               "properties": {
                 "label": { "type": "string", "minLength": 1 },
                 "presentation": { "enum": ["modal", "drawer", "page"] },
+                "preserveStructure": { "type": "boolean" },
                 "form": {
                   "type": "object",
-                  "properties": { "title": { "type": "string", "minLength": 1 } }
+                  "properties": {
+                    "title": { "type": "string", "minLength": 1 },
+                    "preserveStructure": { "type": "boolean" }
+                  }
                 }
               },
               "allOf": [

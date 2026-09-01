@@ -37,7 +37,7 @@ description: 为易账通（同义名称：Yee账通、yee账通、Easy Account�
 ## 工作流程
 
 1. 先运行一次 `node scripts/dispatch-easy-account-command.mjs --request "<原始请求>"`。返回 `natural-generation` 时执行以下原有工作流；返回已开放的 `mode-selected` 时选择 Change、运行 `prepareCommand`、按返回阶段生成可编辑产物，再运行 `finalizeCommand`。返回未开放模式时只报告当前状态。
-2. 读取 `modules/easy-account/DOMAIN.md`，再按当前任务阶段读取对应的导演规则、业务规则和执行上下文；涉及新页面组合时额外读取 `modules/easy-account/execution/capability-model/capability-model.md` 及其机器可读契约；不要加载其他业务系统的规则、Shell 或主题。
+2. 读取 `modules/easy-account/DOMAIN.md`，再按当前任务阶段读取对应的导演规则、业务规则和执行上下文；涉及表单字段、组件或联动时读取 `modules/easy-account/execution/form-field-contract.md`；涉及新页面组合时额外读取 `modules/easy-account/execution/capability-model/capability-model.md` 及其机器可读契约；不要加载其他业务系统的规则、Shell 或主题。
 3. 为新页面创建 `changes/YYYYMMDD-功能名称/`，写入需求、设计、规则读取记录和唯一可编辑的 `page-spec.json`。组合式页面可使用 `page-composition.json`，先运行结构校验；只有校验结果为 `preview-ready` 才能运行组合式构建器。已有 Change 直接沿用原目录，不创建重复 Change。
 4. 使用固定脚本生成预览：
 
@@ -55,6 +55,9 @@ description: 为易账通（同义名称：Yee账通、yee账通、Easy Account�
 - `modules/easy-account/execution/generation-policy.json` 决定页面家族和能力是否开放；规则存在不代表能力已开放。
 - `scripts/lib/easy-account-capability-policy.mjs` 负责统一策略解析：简单请求走 `legacy-adapter`，命中 recipe 的请求走组合式 Page Spec，未登记组合进入能力缺口。
 - `modules/easy-account/execution/capability-model/` 定义组合式页面的骨架、区域、能力、数据绑定和组合规则；其中 `model-only` 或 `declared-only` 能力不得宣称为可交付预览。
+- 页面骨架、区域组合和跨页面流程继续受能力模型约束；字段组件是开放能力层，不受 recipe 或 capability registry 的枚举限制。只要需求位于已开放页面或浮层结构内，不得因为多选、级联、条件显隐、条件必填、动态选项、上传、日期、复选或其他 Ant Design 表单组件未被模板单独登记而报告能力缺口。
+- 常用字段使用 `modules/easy-account/execution/form-field-contract.md` 的 `control`、条件和动态选项协议；未内置别名的 Ant Design 表单组件使用 `component` 与 JSON 可序列化的 `props`。Page Spec 不承载可执行函数；协议不足以表达新的交互原语时扩展固定运行时及测试，而不是限制产品需求或在 Page Spec 中注入脚本。
+- 修改已有页面时，用户声明“不改变入口、结构或布局”即为硬约束；组件能力和字段联动只能在指定容器内扩展，不得借能力开放重构其他区域。
 - 普通查询条件的展开/收起阈值固定为 3，不由具体页面覆盖；超过 3 个普通查询字段时默认全部展开并显示“收起”，收起后只保留前 3 个。主对象 `selectorFields` 不计入普通查询字段数量，展开/收起必须保留已输入值。
 - 查询页统计必须按语义和数量拆分：`overview` 只表示当前主对象总览并位于普通查询条件上方，指标在总览区域内平铺；`summary` 只表示当前查询结果汇总。汇总指标不超过 3 条时替换查询列表标题，以 `14px` 的“查询汇总：标题 数值 单位｜…”展示，将数值设为主色并将 `｜` 分隔符设为 `#E4E4E7`；超过 3 条时位于完整查询条件模块下方、结果 Table 上方，以无灰色边框的独立圆角统计卡片展示，不显示区域标题或外层业务模块。不得互换语义、位置、样式或配置。
 - `modules/easy-account/shell/` 是固定框架层，业务页面只能挂载到内容插槽，不能重绘导航、多标签、页脚或侧栏。
@@ -68,6 +71,7 @@ description: 为易账通（同义名称：Yee账通、yee账通、Easy Account�
 - 组件与前端约定：`modules/easy-account/components.md`、`modules/easy-account/frontend.md`
 - 视觉与交互：`modules/easy-account/director-rules/`
 - 生成契约：`modules/easy-account/execution/page-spec.schema.json`
+- 开放字段契约：`modules/easy-account/execution/form-field.schema.json`、`modules/easy-account/execution/form-field-contract.md`
 - 组合式生成契约：`modules/easy-account/execution/capability-model/page-composition.schema.json`、`data-binding.schema.json`
 - 组合式运行时：`modules/easy-account/execution/renderer/page-composition-runtime.js`、`page-composition-business.css`
 - 页面族上下文：`modules/easy-account/execution/context-packs/`

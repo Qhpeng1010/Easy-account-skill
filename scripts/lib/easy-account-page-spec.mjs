@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { assertRuleRefs, readDirectorRules, resolveDetailPresentation, resolveFormPresentation } from './easy-account-director-rules.mjs';
+import { validateFormFields } from './easy-account-form-fields.mjs';
 
 export const ROOT = resolve(new URL('../..', import.meta.url).pathname);
 export const EXECUTION_ROOT = resolve(ROOT, 'modules/easy-account/execution');
@@ -169,6 +170,25 @@ function interactiveFields(form) {
   return fields.filter((field) => field?.interactive !== false && field?.kind !== 'display');
 }
 
+function validateFieldCollection(errors, fields, location) {
+  errors.push(...validateFormFields(fields, location));
+}
+
+function validateOpenFields(errors, spec) {
+  validateFieldCollection(errors, spec.list?.query?.fields, 'list.query.fields');
+  (spec.list?.table?.views || []).forEach((view, index) => validateFieldCollection(errors, view?.queryFields, `list.table.views[${index}].queryFields`));
+  const primaryForm = spec.list?.table?.primaryAction?.form;
+  validateFieldCollection(errors, primaryForm?.fields, 'list.table.primaryAction.form.fields');
+  (primaryForm?.groups || []).forEach((group, index) => validateFieldCollection(errors, group?.fields, `list.table.primaryAction.form.groups[${index}].fields`));
+  (spec.list?.table?.columns || []).flatMap((column) => column?.actions || []).forEach((action, index) => {
+    validateFieldCollection(errors, action?.form?.fields, `list.table.actions[${index}].form.fields`);
+    (action?.form?.groups || []).forEach((group, groupIndex) => validateFieldCollection(errors, group?.fields, `list.table.actions[${index}].form.groups[${groupIndex}].fields`));
+  });
+  validateFieldCollection(errors, spec.form?.fields, 'form.fields');
+  (spec.form?.groups || []).forEach((group, index) => validateFieldCollection(errors, group?.fields, `form.groups[${index}].fields`));
+  (spec.form?.steps || []).forEach((step, index) => validateFieldCollection(errors, step?.fields, `form.steps[${index}].fields`));
+}
+
 export function validatePageSpec(spec, root = process.cwd()) {
   const errors = [];
   const director = readDirectorRules(root);
@@ -180,6 +200,7 @@ export function validatePageSpec(spec, root = process.cwd()) {
   validationIssue(errors, Array.isArray(spec.metadata?.ruleRefs) && spec.metadata.ruleRefs.length > 0, 'metadata.ruleRefs must be non-empty.');
   const unknown = assertRuleRefs(spec.metadata?.ruleRefs, director);
   if (unknown.length) errors.push(`metadata.ruleRefs contains unknown director rules: ${unknown.join(', ')}.`);
+  validateOpenFields(errors, spec);
   const family = spec.metadata?.family;
   if (family === 'list') {
     const fields = spec.list?.query?.fields || [];
@@ -201,7 +222,9 @@ export function validatePageSpec(spec, root = process.cwd()) {
       validationIssue(errors, action.form && typeof action.form === 'object' && !Array.isArray(action.form), 'list.table.primaryAction.form is required.');
       validationIssue(errors, ['modal', 'drawer', 'page'].includes(presentation), 'list.table.primaryAction.presentation is invalid.');
       if (['modal', 'drawer'].includes(presentation)) validationIssue(errors, hasText(action.form?.title), 'list.table.primaryAction.form.title is required for Modal and Drawer.');
-      if (presentation !== expected) errors.push(`list.table.primaryAction.presentation ${presentation} conflicts with director rules; expected ${expected}.`);
+      if (presentation !== expected && action.preserveStructure !== true && action.form?.preserveStructure !== true) {
+        errors.push(`list.table.primaryAction.presentation ${presentation} conflicts with director rules; expected ${expected}.`);
+      }
     }
     const rowActions = (table?.columns || []).flatMap((column) => column?.actions || []);
     rowActions.filter((rowAction) => rowAction?.type === 'edit').forEach((rowAction, index) => {

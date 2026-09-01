@@ -261,7 +261,16 @@ const emptyManagedOverview = structuredClone(managedOverview);
 emptyManagedOverview.regions[1].config.management.fields = [];
 const emptyManagedOverviewResult = validatePageComposition(emptyManagedOverview, root);
 assert.equal(emptyManagedOverviewResult.valid, false);
-assert.match(emptyManagedOverviewResult.errors.join('\n'), /must contain 1 to 6 fields/);
+assert.match(emptyManagedOverviewResult.errors.join('\n'), /must contain at least 1 field/);
+
+const extendedManagedOverview = structuredClone(managedOverview);
+extendedManagedOverview.regions[1].config.management.fields = Array.from({ length: 8 }, (_, index) => ({ key: `field${index}`, label: `字段${index}`, control: 'input' }));
+const unpreservedExtendedManagedOverviewResult = validatePageComposition(extendedManagedOverview, root);
+assert.equal(unpreservedExtendedManagedOverviewResult.valid, false);
+assert.match(unpreservedExtendedManagedOverviewResult.errors.join('\n'), /requires preserveStructure=true/);
+extendedManagedOverview.regions[1].config.management.preserveStructure = true;
+const extendedManagedOverviewResult = validatePageComposition(extendedManagedOverview, root);
+assert.equal(extendedManagedOverviewResult.valid, true);
 
 const summaryWithOverviewConfig = structuredClone(base);
 summaryWithOverviewConfig.regions[1].config.selectorKey = 'accountId';

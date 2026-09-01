@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://yeepay.local/schemas/easy-account-form-field-v1.json",
+  "title": "Easy Account Open Form Field",
+  "type": "object",
+  "required": ["key", "label"],
+  "anyOf": [
+    { "required": ["control"] },
+    { "required": ["component"] }
+  ],
+  "properties": {
+    "key": { "type": "string", "minLength": 1 },
+    "label": { "type": "string", "minLength": 1 },
+    "control": { "type": "string", "minLength": 1 },
+    "component": { "type": "string", "minLength": 1 },
+    "props": { "type": "object", "additionalProperties": true },
+    "options": { "type": "array" },
+    "mode": { "enum": ["multiple", "tags"] },
+    "multiple": { "type": "boolean" },
+    "visibleWhen": { "$ref": "#/$defs/condition" },
+    "disabledWhen": { "$ref": "#/$defs/condition" },
+    "requiredWhen": { "$ref": "#/$defs/condition" },
+    "optionsBy": {
+      "type": "object",
+      "required": ["field", "map"],
+      "properties": {
+        "field": { "type": "string", "minLength": 1 },
+        "map": { "type": "object", "additionalProperties": { "type": "array" } },
+        "fallback": { "type": "array" }
+      },
+      "additionalProperties": false
+    },
+    "preserveWhenHidden": { "type": "boolean" },
+    "resetWhenDependenciesChange": { "type": "boolean" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "condition": {
+      "type": "object",
+      "properties": {
+        "field": { "type": "string", "minLength": 1 },
+        "operator": { "enum": ["equals", "notEquals", "in", "notIn", "includes", "includesAny", "includesAll", "empty", "notEmpty", "truthy", "falsy"] },
+        "value": {},
+        "values": { "type": "array" },
+        "all": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "any": { "type": "array", "items": { "$ref": "#/$defs/condition" } },
+        "not": { "$ref": "#/$defs/condition" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

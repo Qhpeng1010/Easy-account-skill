@@ -64,7 +64,9 @@
           "event": { "type": "string", "minLength": 1 },
           "to": { "type": "string", "minLength": 1 },
           "requires": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
-          "bindingIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } }
+          "bindingIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+          "presentation": { "enum": ["modal", "drawer", "page"] },
+          "preserveStructure": { "type": "boolean" }
         }
       }
     },

@@ -78,40 +78,145 @@
     }));
   }
 
-  function control(field, id) {
-    const placeholder = field.placeholder || (field.control === 'select' ? `请选择${field.label}` : `请输入${field.label}`);
-    const common = { id, placeholder, disabled: field.disabled, maxLength: field.maxLength };
-    if (field.control === 'select') return h(Select, { ...common, allowClear: true, options: field.options || [] });
-    if (field.control === 'radio') return h(Radio.Group, { id, disabled: field.disabled, options: field.options || [] });
+  function fieldValue(values, path) {
+    return String(path || '').split('.').filter(Boolean).reduce((current, key) => current?.[key], values);
+  }
+
+  function sameValue(left, right) {
+    if (left === right) return true;
+    if (left === undefined || left === null || right === undefined || right === null) return false;
+    return String(left) === String(right);
+  }
+
+  function conditionMatches(condition, values) {
+    if (!condition) return true;
+    if (Array.isArray(condition)) return condition.every((item) => conditionMatches(item, values));
+    if (Array.isArray(condition.all)) return condition.all.every((item) => conditionMatches(item, values));
+    if (Array.isArray(condition.any)) return condition.any.some((item) => conditionMatches(item, values));
+    if (condition.not) return !conditionMatches(condition.not, values);
+    const current = fieldValue(values, condition.field);
+    const expected = condition.value !== undefined ? condition.value : condition.values;
+    const list = (value) => Array.isArray(value) ? value : [value];
+    switch (condition.operator || 'equals') {
+      case 'notEquals': return !sameValue(current, expected);
+      case 'in': return list(expected).some((item) => sameValue(current, item));
+      case 'notIn': return !list(expected).some((item) => sameValue(current, item));
+      case 'includes': return list(current).some((item) => sameValue(item, expected));
+      case 'includesAny': return list(expected).some((item) => list(current).some((entry) => sameValue(entry, item)));
+      case 'includesAll': return list(expected).every((item) => list(current).some((entry) => sameValue(entry, item)));
+      case 'empty': return current === undefined || current === null || current === '' || (Array.isArray(current) && current.length === 0);
+      case 'notEmpty': return !(current === undefined || current === null || current === '' || (Array.isArray(current) && current.length === 0));
+      case 'truthy': return Boolean(current);
+      case 'falsy': return !current;
+      default: return sameValue(current, expected);
+    }
+  }
+
+  function fieldOptions(field, values) {
+    if (!field.optionsBy) return field.options || [];
+    const source = fieldValue(values, field.optionsBy.field);
+    const key = Array.isArray(source) ? source.join('|') : String(source ?? '');
+    return field.optionsBy.map?.[key] || field.optionsBy.fallback || field.options || [];
+  }
+
+  function resolveComponent(name) {
+    return String(name || '').split('.').filter(Boolean).reduce((current, key) => current?.[key], antd);
+  }
+
+  function control(field, id, values = {}) {
+    const placeholder = field.placeholder || field.props?.placeholder || (['select', 'cascader', 'tree-select', 'date', 'date-range', 'time', 'time-range'].includes(field.control) ? `请选择${field.label}` : `请输入${field.label}`);
+    const disabled = Boolean(field.disabled || field.props?.disabled || (field.disabledWhen && conditionMatches(field.disabledWhen, values)));
+    const options = fieldOptions(field, values);
+    const common = { ...(field.props || {}), id, placeholder, disabled, maxLength: field.maxLength ?? field.props?.maxLength };
+    if (field.control === 'select') return h(Select, { ...common, allowClear: field.allowClear !== false, mode: field.mode || (field.multiple ? 'multiple' : common.mode), options });
+    if (field.control === 'cascader') return h(antd.Cascader, { ...common, allowClear: field.allowClear !== false, multiple: field.multiple ?? common.multiple, options });
+    if (field.control === 'radio') return h(Radio.Group, { ...common, options });
+    if (field.control === 'checkbox-group') return h(Checkbox.Group, { ...common, options });
+    if (field.control === 'checkbox') return h(Checkbox, common, field.text || field.checkboxLabel || null);
+    if (field.control === 'switch') return h(Switch, { ...common, checkedChildren: field.checkedLabel, unCheckedChildren: field.uncheckedLabel });
+    if (field.control === 'tree-select') return h(antd.TreeSelect, { ...common, allowClear: field.allowClear !== false, multiple: field.multiple ?? common.multiple, treeCheckable: field.treeCheckable ?? common.treeCheckable, treeData: field.treeData || options });
     if (field.control === 'tree') return h(Tree, {
       id,
       className: 'ea-permission-tree',
       checkable: true,
       selectable: false,
       defaultExpandAll: field.defaultExpandAll !== false,
-      disabled: field.disabled,
+      disabled,
       treeData: field.treeData || []
     });
     if (field.control === 'upload') return h(Upload, {
+      ...(field.props || {}),
       id,
       accept: field.accept || 'image/*',
       beforeUpload: () => false,
-      maxCount: field.maxCount || 1,
+      maxCount: field.maxCount || field.props?.maxCount || 1,
       listType: field.listType || 'picture'
     }, h(Button, { icon: UploadOutlined ? h(UploadOutlined) : null, className: 'ea-upload-trigger' }, field.buttonLabel || '上传文件'));
-    if (field.control === 'date') return h(DatePicker, { ...common, format: field.format || 'YYYY-MM-DD', style: { width: '100%' } });
-    if (field.control === 'date-range') return h(DatePicker.RangePicker, { ...common, format: field.format || 'YYYY-MM-DD', style: { width: '100%' } });
-    if (field.control === 'textarea') return h(Input.TextArea, { ...common, rows: field.rows || 3, showCount: Boolean(field.maxLength) });
-    return h(Input, { ...common, inputMode: field.control === 'number' ? 'decimal' : undefined });
+    if (field.control === 'date') return h(DatePicker, { ...common, format: field.format || common.format || 'YYYY-MM-DD', style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'date-range') return h(DatePicker.RangePicker, { ...common, format: field.format || common.format || 'YYYY-MM-DD', style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'time') return h(antd.TimePicker, { ...common, format: field.format || common.format || 'HH:mm', style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'time-range') return h(antd.TimePicker.RangePicker, { ...common, format: field.format || common.format || 'HH:mm', style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'textarea') return h(Input.TextArea, { ...common, rows: field.rows || common.rows || 3, showCount: field.showCount ?? Boolean(field.maxLength ?? common.maxLength) });
+    if (field.control === 'number') return h(antd.InputNumber, { ...common, min: field.min ?? common.min, max: field.max ?? common.max, precision: field.precision ?? common.precision, style: { width: '100%', ...(field.props?.style || {}) } });
+    if (field.control === 'slider') return h(antd.Slider, { ...common, min: field.min ?? common.min, max: field.max ?? common.max, step: field.step ?? common.step });
+    if (field.control === 'rate') return h(antd.Rate, common);
+    if (field.control === 'autocomplete') return h(antd.AutoComplete, { ...common, options });
+    if (field.control === 'mentions') return h(antd.Mentions, { ...common, options });
+    const Component = field.component ? resolveComponent(field.component) : Input;
+    return h(Component || Input, { ...common, options });
+  }
+
+  function fieldBinding(field) {
+    if (field.control === 'tree') return { valuePropName: 'checkedKeys', trigger: 'onCheck' };
+    if (field.control === 'checkbox' || field.control === 'switch') return { valuePropName: 'checked' };
+    if (field.control === 'upload') return { valuePropName: 'fileList', getValueFromEvent: (event) => Array.isArray(event) ? event : event?.fileList };
+    return {};
+  }
+
+  function renderField(form, field, id, itemProps = {}) {
+    return h(Form.Item, { key: `watch-${field.key}`, noStyle: true, shouldUpdate: true }, () => {
+      const values = form.getFieldsValue(true);
+      if (field.visibleWhen && !conditionMatches(field.visibleWhen, values)) return null;
+      return h(Form.Item, {
+        ...itemProps,
+        ...fieldBinding(field),
+        key: field.key,
+        label: field.label,
+        name: field.key,
+        preserve: field.preserve !== false,
+        rules: formRules(field, values)
+      }, control(field, id, values));
+    });
+  }
+
+  function normalizeDependentFields(form, fields, values) {
+    const resets = {};
+    (fields || []).forEach((field) => {
+      const current = values[field.key];
+      if (field.visibleWhen && !conditionMatches(field.visibleWhen, values) && field.preserveWhenHidden !== true && current !== undefined) resets[field.key] = undefined;
+      if (field.optionsBy && field.resetWhenDependenciesChange !== false && current !== undefined) {
+        const allowed = fieldOptions(field, values).map((option) => option?.value);
+        const selected = Array.isArray(current) ? current : [current];
+        if (selected.some((value) => !allowed.some((item) => sameValue(item, value)))) resets[field.key] = undefined;
+      }
+    });
+    if (Object.keys(resets).length) form.setFieldsValue(resets);
   }
 
   function matches(row, fields, filters) {
     return fields.every((field) => {
       const value = filters[field.key];
-      if (value === undefined || value === null || value === '') return true;
+      if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) return true;
       const source = row[field.filterKey || field.key];
       const sourceValue = source && typeof source === 'object' ? source.value ?? source.text ?? source.minor : source;
-      if (field.control === 'select') return String(sourceValue) === String(value);
+      if (['select', 'cascader', 'checkbox-group', 'tree-select'].includes(field.control) && Array.isArray(value)) {
+        const expected = field.control === 'cascader' && !field.multiple ? value.slice(-1) : value;
+        const actual = Array.isArray(sourceValue) ? sourceValue : [sourceValue];
+        return field.filterMode === 'all'
+          ? expected.every((item) => actual.some((entry) => sameValue(entry, item)))
+          : expected.some((item) => actual.some((entry) => sameValue(entry, item)));
+      }
+      if (field.control === 'select') return sameValue(sourceValue, value);
       if (field.control === 'date-range' && Array.isArray(value) && value.length === 2) {
         const start = value[0]?.format?.('YYYY-MM-DD');
         const end = value[1]?.format?.('YYYY-MM-DD');
@@ -158,9 +263,11 @@
     return `${value.getFullYear()}-${part(value.getMonth() + 1)}-${part(value.getDate())} ${part(value.getHours())}:${part(value.getMinutes())}:${part(value.getSeconds())}`;
   }
 
-  function formRules(field) {
+  function formRules(field, values = {}) {
     const rules = [];
-    if (field.required) rules.push({ required: true, message: field.validationMessage || `请填写${field.label}` });
+    const disabled = field.disabled || field.props?.disabled || (field.disabledWhen && conditionMatches(field.disabledWhen, values));
+    const required = !disabled && (field.required || (field.requiredWhen && conditionMatches(field.requiredWhen, values)));
+    if (required) rules.push({ required: true, message: field.validationMessage || `请填写${field.label}` });
     if (field.validationPattern) rules.push({ pattern: new RegExp(field.validationPattern), message: field.patternMessage || `${field.label}格式不正确` });
     return rules;
   }
@@ -218,6 +325,10 @@
   function applyDisplayValues(record, fields) {
     (fields || []).forEach((field) => {
       if (!field.displayKey || !Array.isArray(field.options)) return;
+      if (Array.isArray(record[field.key])) {
+        record[field.displayKey] = record[field.key].map((value) => field.options.find((item) => sameValue(item.value, value))?.label || value).join('、');
+        return;
+      }
       const option = field.options.find((item) => String(item.value) === String(record[field.key]));
       if (option) record[field.displayKey] = option.label;
     });
@@ -651,23 +762,19 @@
     }, h(Form, {
       form: createForm,
       layout: 'vertical',
-      initialValues: createConfig?.initialValues || {},
-      onValuesChange: () => setDirty(true),
+      initialValues: modalFormConfig?.initialValues || {},
+      onValuesChange: (changed, values) => { normalizeDependentFields(createForm, modalFields, values); setDirty(true); },
       onFinish: createRecord,
       onFinishFailed: onCreateFailed,
       className: 'ea-create-form'
-    }, h('div', { className: 'ea-create-form-grid' }, ...modalFields.map((field) => h(Form.Item, {
-      key: field.key,
-      label: field.label,
-      name: field.key,
+    }, h('div', { className: 'ea-create-form-grid' }, ...modalFields.map((field) => renderField(createForm, field, `form-${field.key}`, {
       className: field.fullWidth ? 'ea-create-form-item--full' : undefined,
-      valuePropName: field.control === 'tree' ? 'checkedKeys' : undefined,
-      trigger: field.control === 'tree' ? 'onCheck' : undefined,
-      rules: formRules(field)
-    }, control(field, `form-${field.key}`)))))) : null;
+      extra: field.help
+    }))))) : null;
 
     const pageFormConfig = view === 'row-page-form' ? rowPageAction?.form : createConfig;
     const pageFormSubmit = pageFormConfig?.submit || {};
+    const pageFormFields = (pageFormConfig?.groups || []).flatMap((group) => group.fields || []);
     const pageFormVisible = (view === 'create' && primaryPresentation === 'page') || view === 'row-page-form';
     if (pageFormVisible && pageFormConfig) {
       return h('div', { className: 'ea-page-content ea-page-form' },
@@ -689,7 +796,7 @@
           labelCol: { flex: '148px' },
           wrapperCol: { flex: '620px' },
           initialValues: pageFormConfig.initialValues || {},
-          onValuesChange: () => setDirty(true),
+          onValuesChange: (changed, values) => { normalizeDependentFields(createForm, pageFormFields, values); setDirty(true); },
           onFinish: view === 'row-page-form' ? submitRowPageAction : createRecord,
           onFinishFailed: onCreateFailed,
           scrollToFirstError: true
@@ -698,15 +805,7 @@
           ...(pageFormConfig.groups || []).map((group) => h('section', { key: group.key, className: 'ea-module ea-page-form-group', 'aria-labelledby': `group-${group.key}` },
             h('h2', { id: `group-${group.key}` }, group.title),
             group.description ? h('p', { className: 'ea-page-form-group-description' }, group.description) : null,
-            ...(group.fields || []).map((field) => h(Form.Item, {
-              key: field.key,
-              label: field.label,
-              name: field.key,
-              valuePropName: field.control === 'tree' ? 'checkedKeys' : undefined,
-              trigger: field.control === 'tree' ? 'onCheck' : undefined,
-              rules: formRules(field),
-              extra: field.help
-            }, control(field, `form-${field.key}`)))))),
+            ...(group.fields || []).map((field) => renderField(createForm, field, `form-${field.key}`, { extra: field.help }))))),
         h('div', { className: 'ea-page-form-sticky-actions' },
           h('div', { className: 'ea-page-form-action-inner' },
             h(Button, { disabled: creating, onClick: requestLeaveCreate }, pageFormSubmit.secondaryLabel || '取消'),
@@ -724,9 +823,9 @@
           })),
           onChange: changeView
         }) : null,
-        h(Form, { form: queryForm, layout: 'vertical', onFinish: runQuery },
+        h(Form, { form: queryForm, layout: 'vertical', onFinish: runQuery, onValuesChange: (changed, values) => normalizeDependentFields(queryForm, fields, values) },
           h('div', { className: 'ea-query-grid' },
-            ...visibleFields.map((field) => h(Form.Item, { key: field.key, label: field.label, name: field.key }, control(field, `field-${field.key}`))),
+            ...visibleFields.map((field) => renderField(queryForm, field, `field-${field.key}`)),
             h('div', { className: 'ea-query-actions' },
               h(Button, { onClick: reset }, '重置'),
               h(Button, { type: 'primary', htmlType: 'submit', loading }, '查询'),
