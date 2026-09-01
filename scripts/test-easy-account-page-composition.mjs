@@ -151,7 +151,8 @@ assert.match(compositionCss, /\.ea-composition-query-overview-heading \.ant-btn\
 assert.match(compositionCss, /\.ea-composition-query-result-summary\s*\{[^}]*min-width:\s*0/s);
 assert.doesNotMatch(compositionCss.match(/\.ea-composition-query-result-summary\s*\{[^}]*\}/s)?.[0] || '', /background|padding|border|border-radius/);
 assert.match(compositionCss, /\.ea-composition-overview-statistics \.ant-statistic:first-child/);
-assert.doesNotMatch(compositionCss.match(/\.ea-composition-overview-statistics \.ant-statistic\s*\{[^}]*\}/s)?.[0] || '', /border/);
+assert.match(compositionCss, /\.ea-composition-overview-statistics \.ant-statistic \+ \.ant-statistic::before\s*\{[^}]*width:\s*1px[^}]*height:\s*16px[^}]*background-color:\s*#e4e4e7[^}]*opacity:\s*1/s);
+assert.match(compositionCss, /@media \(max-width:\s*767px\)[\s\S]*\.ea-composition-overview-statistics \.ant-statistic \+ \.ant-statistic::before\s*\{[^}]*display:\s*none/s);
 assert.match(compositionCss, /\.ea-composition-summary-statistics\s*\{[^}]*gap:\s*12px/s);
 assert.match(compositionCss, /\.ea-composition-summary-statistics \.ant-statistic\s*\{[^}]*border-radius:\s*6px[^}]*background:\s*var\(--ea-page-white\)[^}]*padding:\s*16px/s);
 assert.doesNotMatch(compositionCss.match(/\.ea-composition-summary-statistics \.ant-statistic\s*\{[^}]*\}/s)?.[0] || '', /\bborder\s*:/);

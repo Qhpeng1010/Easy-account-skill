@@ -78,6 +78,15 @@
     }));
   }
 
+  function stackHeader(column) {
+    const label = String(column.label || '');
+    const parts = label.split(/[\/／]/).map((part) => part.trim()).filter(Boolean);
+    if (column.headerWrap !== 'wrap' || parts.length < 2) {
+      return h('span', { className: 'ea-stacked-header ea-stacked-header--nowrap' }, label);
+    }
+    return h('div', { className: 'ea-stacked-header' }, ...parts.map((part, index) => h('span', { key: `${part}-${index}` }, part)));
+  }
+
   function fieldValue(values, path) {
     return String(path || '').split('.').filter(Boolean).reduce((current, key) => current?.[key], values);
   }
@@ -643,14 +652,16 @@
             onClick: () => handleRowAction(action, row)
           }, action.label)))
         };
+        const isStack = column.format === 'stack';
+        const hasMultiFieldHeader = /[\/／]/.test(String(column.label || ''));
         return {
           key: column.key,
           dataIndex: column.key,
-          title: column.format === 'amount' ? amountColumnTitle(column) : column.label,
+          title: column.format === 'amount' ? amountColumnTitle(column) : (isStack || hasMultiFieldHeader || column.headerWrap === 'nowrap') ? stackHeader(column) : column.label,
           width: column.width,
           ellipsis: false,
           align: column.format === 'amount' ? 'right' : undefined,
-          className: column.format === 'amount' ? 'ea-amount-column' : undefined,
+          className: column.format === 'amount' ? 'ea-amount-column' : isStack ? 'ea-stacked-group-column' : undefined,
           render: column.format === 'amount'
             ? (value) => amount(value, column.mixedCurrency === true)
             : column.format === 'status'

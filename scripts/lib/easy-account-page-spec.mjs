@@ -213,6 +213,11 @@ export function validatePageSpec(spec, root = process.cwd()) {
       errors.push(`list.query.fields exceeds director rule maximum of ${director.runtimePolicy.query.basicMaxFields}.`);
     }
     const table = spec.list?.table;
+    (table?.columns || []).forEach((column, index) => {
+      if (column?.headerWrap !== undefined && !['wrap', 'nowrap'].includes(column.headerWrap)) {
+        errors.push(`list.table.columns[${index}].headerWrap must be wrap or nowrap.`);
+      }
+    });
     const action = table?.primaryAction;
     if (action) {
       const count = interactiveFields(action.form).length;

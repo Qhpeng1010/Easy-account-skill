@@ -47,7 +47,12 @@
 .ea-result-actions { display: flex; align-items: center; gap: 8px; }
 .ea-result-module .ant-table-wrapper { overflow: hidden; }
 .ea-result-module .ant-table-container { overflow: hidden; border: 1px solid var(--ea-table-border); }
-.ea-result-module .ea-table.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell { box-sizing: border-box; height: 42px; padding: 10px 16px !important; background: var(--ea-table-header); color: var(--ea-table-header-text); font-weight: 600; line-height: 22px; }
+.ea-result-module .ea-table.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell { box-sizing: border-box; min-height: 42px; height: auto; padding: 10px 16px !important; background: var(--ea-table-header); color: var(--ea-table-header-text); font-size: 13px; font-weight: 600; line-height: 22px; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.ea-result-module .ea-table.ant-table-wrapper .ant-table-thead > tr > th .ant-table-column-title { min-width: 0; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.ea-result-module .ea-table.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell::before { display: none !important; }
+.ea-result-module .ea-table.ant-table-wrapper .ant-table-thead > tr > th.ant-table-cell:not(:last-child)::before { display: block !important; position: absolute; top: 50%; right: 0; width: 1px; height: 16px; transform: translateY(-50%); background-color: #d6d6d6; content: ''; opacity: 1; }
+.ea-stacked-header { display: grid; gap: 0; min-width: 0; line-height: 22px; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+.ea-stacked-header--nowrap { display: inline-block; white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 .ea-result-module .ea-table.ant-table-wrapper .ant-table-cell { padding: 10px 16px !important; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
 .ea-result-module .ea-table.ant-table-wrapper .ea-amount-column { text-align: right; font-variant-numeric: tabular-nums; }
 .ea-result-module .ea-status-tag,
