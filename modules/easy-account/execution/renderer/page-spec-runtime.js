@@ -139,7 +139,15 @@
     const common = { ...(field.props || {}), id, placeholder, disabled, maxLength: field.maxLength ?? field.props?.maxLength };
     if (field.control === 'select') return h(Select, { ...common, allowClear: field.allowClear !== false, mode: field.mode || (field.multiple ? 'multiple' : common.mode), options });
     if (field.control === 'cascader') return h(antd.Cascader, { ...common, allowClear: field.allowClear !== false, multiple: field.multiple ?? common.multiple, options });
-    if (field.control === 'radio') return h(Radio.Group, { ...common, options });
+    if (field.control === 'radio') {
+      let radioOptions = options;
+      if (field.optionDisableBy?.field) {
+        const current = String(fieldValue(values, field.optionDisableBy.field));
+        const disabled = field.optionDisableBy.map?.[current] || [];
+        radioOptions = options.map((option) => (disabled.includes(option?.value) ? { ...option, disabled: true } : option));
+      }
+      return h(Radio.Group, { ...common, options: radioOptions });
+    }
     if (field.control === 'checkbox-group') return h(Checkbox.Group, { ...common, options });
     if (field.control === 'checkbox') return h(Checkbox, common, field.text || field.checkboxLabel || null);
     if (field.control === 'switch') return h(Switch, { ...common, checkedChildren: field.checkedLabel, unCheckedChildren: field.uncheckedLabel });
@@ -220,9 +228,9 @@
         : (field.text || '-')));
   }
 
-  function renderField(form, field, id, itemProps = {}, sourceRow = null) {
+  function renderField(form, field, id, itemProps = {}, sourceRow = null, fallbackValues = null) {
     return h(Form.Item, { key: `watch-${field.key}`, noStyle: true, shouldUpdate: true }, () => {
-      const values = form.getFieldsValue(true);
+      const values = { ...(fallbackValues || {}), ...form.getFieldsValue(true) };
       if (field.visibleWhen && !conditionMatches(field.visibleWhen, values)) return null;
       if (field.kind === 'display' || field.control === 'display') return renderDisplayField(field, sourceRow, itemProps);
       return h(Form.Item, {
@@ -237,15 +245,29 @@
     });
   }
 
+  function allowedOptionValues(field, values) {
+    let opts = fieldOptions(field, values);
+    if (field.optionDisableBy?.field) {
+      const current = String(fieldValue(values, field.optionDisableBy.field));
+      const disabled = field.optionDisableBy.map?.[current] || [];
+      opts = opts.filter((option) => !disabled.includes(option?.value));
+    }
+    return opts.map((option) => option?.value);
+  }
+
   function normalizeDependentFields(form, fields, values) {
     const resets = {};
     (fields || []).forEach((field) => {
       const current = values[field.key];
       if (field.visibleWhen && !conditionMatches(field.visibleWhen, values) && field.preserveWhenHidden !== true && current !== undefined) resets[field.key] = undefined;
-      if (field.optionsBy && field.resetWhenDependenciesChange !== false && current !== undefined) {
-        const allowed = fieldOptions(field, values).map((option) => option?.value);
+      const hasOptionDependency = field.optionsBy || field.optionDisableBy;
+      if (hasOptionDependency && field.resetWhenDependenciesChange !== false && current !== undefined) {
+        const allowed = allowedOptionValues(field, values);
         const selected = Array.isArray(current) ? current : [current];
-        if (selected.some((value) => !allowed.some((item) => sameValue(item, value)))) resets[field.key] = undefined;
+        if (selected.some((value) => !allowed.some((item) => sameValue(item, value)))) {
+          if (field.autoPick && allowed.length) resets[field.key] = allowed[0];
+          else resets[field.key] = undefined;
+        }
       }
     });
     if (Object.keys(resets).length) form.setFieldsValue(resets);
@@ -942,7 +964,7 @@
             return h('section', { key: group.key, className: 'ea-module ea-page-form-group', 'aria-labelledby': `group-${group.key}` },
               h('h2', { id: `group-${group.key}` }, group.title),
               group.description ? h('p', { className: 'ea-page-form-group-description' }, group.description) : null,
-              ...(group.fields || []).map((field) => renderField(createForm, field, `form-${field.key}`, { extra: field.help }, view === 'row-page-form' ? rowPageAction?.row : null)));
+              ...(group.fields || []).map((field) => renderField(createForm, field, `form-${field.key}`, { extra: field.help }, view === 'row-page-form' ? rowPageAction?.row : null, pageFormConfig.initialValues)));
           }))),
         h('div', { className: 'ea-page-form-sticky-actions' },
           h('div', { className: 'ea-page-form-action-inner' },
