@@ -87,6 +87,15 @@ description: 为易账通（同义名称：Yee账通、yee账通、Easy Account�
 4. **AI 处理循环**：读批注文件获取未处理条目 → 逐条理解意图并修改 `page-spec.json`（唯一编辑源）→ 运行构建脚本 → 将已处理批注标记 `resolved: true` → 向用户汇报每条批注的处理结果；有歧义的批注先询问，不猜。
 5. **边界**：批注只驱动 `page-spec.json` 修改，不手改派生产物；涉及 Shell 菜单/导航的批注改 `shell.primaryNav` / `shell.sideNav`；能力缺口类批注如实报告，不绕过策略。
 
+## 页面自动抓取（本机扩展）
+
+复刻线上页面时，优先用自动抓取拿到真实结构，不依赖用户截图。工具在本机 `~/.workbuddy/tools/page-capture/capture-page.mjs`（Playwright + 本机 Edge 独立 Profile，不随本仓库分发）。
+
+1. **登录态**：首次或失效时运行 `node capture-page.mjs login`（后台任务方式启动，避免安装检查被锁文件卡住），弹出浏览器窗口由用户人工登录（滑块/验证码均可）；脚本连续两次（间隔 3 秒）确认脱离登录页后保存持久化 Profile 并备份 sessionStorage。
+2. **抓取**：`node capture-page.mjs capture --url <页面URL> --out <目录> [--wait 毫秒] [--full] [--click "Tab名"]`。产物：`shot.png`（截图）、`dom.html`（渲染后 DOM）、`summary.json`（结构化摘要：框架识别 / Tab / 菜单 / 列头 / 查询字段 / 按钮 / 数据行样例）。
+3. **使用产物**：以 `summary.json` + 截图为复刻依据写入 `page-spec.json`，比截图方式更准（真实字段名、真实列头堆叠结构）。
+4. **边界**：登录态过期会在抓取时明确报错（重定向到登录页），不静默输出登录页假数据；页面用 VXE-Table 或自定义表单时摘要器已兼容；交互流程（多步操作、弹窗层级）无法只靠抓取还原，仍需用户口头描述或截图补充。
+
 ## 失败处理
 
 - 页面家族处于 `pending`、`workflow-only` 或 `legacy` 时，报告能力缺口，不绕过策略生成候选页面。
