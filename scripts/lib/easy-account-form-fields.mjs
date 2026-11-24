@@ -1,7 +1,8 @@
 const COMMON_CONTROLS = new Set([
   'input', 'textarea', 'number', 'select', 'cascader', 'radio', 'checkbox',
   'checkbox-group', 'switch', 'date', 'date-range', 'time', 'time-range',
-  'tree', 'tree-select', 'upload', 'slider', 'rate', 'autocomplete', 'mentions'
+  'tree', 'tree-select', 'upload', 'slider', 'rate', 'autocomplete', 'mentions',
+  'display'
 ]);
 
 function valueAt(values, path) {
