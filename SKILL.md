@@ -95,7 +95,7 @@ description: 为易账通（同义名称：Yee账通、yee账通、Easy Account�
 2. **抓取**：`node capture-page.mjs capture --url <页面URL> --out <目录> [--wait 毫秒] [--full] [--click "Tab名"]`。产物：`shot.png`（截图）、`dom.html`（渲染后 DOM）、`summary.json`（结构化摘要：框架识别 / Tab / 菜单 / 列头 / 查询字段 / 按钮 / 数据行样例）。
 3. **使用产物**：以 `summary.json` + 截图为复刻依据写入 `page-spec.json`，比截图方式更准（真实字段名、真实列头堆叠结构）。
 4. **边界**：登录态过期会在抓取时明确报错（重定向到登录页），不静默输出登录页假数据；页面用 VXE-Table 或自定义表单时摘要器已兼容；交互流程（多步操作、弹窗层级）无法只靠抓取还原，仍需用户口头描述或截图补充。
-5. **交互抓取**：涉及单选/下拉联动的页面，可用抓下来的 DOM 逐个点击控件，把展开后的选项和联动后的字段变化写入 `page-spec.json` 的 `visibleWhen` / `labelBy` / `primaryLabelBy`（渲染器已支持）；不要凭截图猜选项。
+5. **交互抓取**：涉及单选/下拉联动的页面，可用抓下来的 DOM 逐个点击控件，把展开后的选项和联动后的字段变化写入 `page-spec.json` 的 `visibleWhen` / `labelBy` / `primaryLabelBy`（渲染器已支持）；不要凭截图猜选项。联动规则用**状态矩阵遍历**验证：每个控件的每个取值都和其他相关控件状态交叉一遍（含禁用项点击、切换后的值归位），防止只点一遍漏掉规则；选项级禁用用 `optionDisableBy` + `autoPick` 表达（真实页面通常是灰显禁用 + 自动归位，不是隐藏选项）。
 
 ## 失败处理
 
