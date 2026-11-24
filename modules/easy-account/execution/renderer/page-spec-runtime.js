@@ -369,6 +369,8 @@
     const [visibleKeys, setVisibleKeys] = React.useState(() => table.columns.filter((column) => column.hidden !== true).map((column) => column.key));
     const [settingsOpen, setSettingsOpen] = React.useState(false);
     const [detailRow, setDetailRow] = React.useState(null);
+    const [detailPageRow, setDetailPageRow] = React.useState(null);
+    const [detailPageTab, setDetailPageTab] = React.useState('');
     const [createOpen, setCreateOpen] = React.useState(false);
     const [rowModalAction, setRowModalAction] = React.useState(null);
     const [view, setView] = React.useState('list');
@@ -525,6 +527,13 @@
     };
 
     const handleRowAction = (action, row) => {
+      if (action.type === 'page-detail') {
+        const config = table.pageDetail || {};
+        setDetailPageRow(row);
+        setDetailPageTab((config.tabs || [])[0]?.key || '');
+        setView('page-detail');
+        return;
+      }
       if (action.type === 'detail') {
         setDetailRow(row);
         return;
@@ -782,6 +791,81 @@
       className: field.fullWidth ? 'ea-create-form-item--full' : undefined,
       extra: field.help
     }))))) : null;
+
+    function renderDetailSection(section, row) {
+      const moduleStyle = { padding: 16, marginBottom: 16, borderRadius: 8 };
+      const heading = (title, actions) => h('div', {
+        style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }
+      }, h('h2', { style: { fontSize: 14, margin: 0, fontWeight: 600 } }, title),
+        h('div', null, ...(actions || []).map((item) => h(Button, {
+          key: item.label, type: 'link', size: 'small',
+          onClick: () => message.info(`${item.label}已触发`)
+        }, item.label))));
+
+      if (section.type === 'profile') {
+        return h('section', { key: section.key, className: 'ea-module', style: moduleStyle },
+          heading(section.title),
+          h('div', { style: { display: 'flex', gap: 24, alignItems: 'center' } },
+            h('div', { style: { width: 56, height: 56, borderRadius: 8, background: '#EDF3FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: '#1E75FF' } }, section.iconText || 'A'),
+            h(Descriptions, {
+              column: section.columns || 3, size: 'small', style: { flex: 1 },
+              items: (section.fields || []).map((field) => ({
+                key: field.key, label: field.label,
+                children: field.format === 'status' ? status(row[field.source]) : (row[field.source] ?? '-')
+              }))
+            })));
+      }
+      if (section.type === 'metrics') {
+        return h('section', { key: section.key, className: 'ea-module', style: moduleStyle },
+          heading(section.title),
+          h('div', { style: { display: 'flex', gap: 64 } }, ...(section.metrics || []).map((metric) => h('div', { key: metric.key },
+            h('div', { style: { fontSize: 12, color: '#606266' } }, metric.label),
+            h('div', { style: { fontSize: 20, fontWeight: 600, marginTop: 4 } }, String(row[metric.source] ?? metric.value ?? '0'))
+          ))));
+      }
+      if (section.type === 'empty-card') {
+        return h('section', { key: section.key, className: 'ea-module', style: moduleStyle },
+          heading(section.title, section.actions),
+          h('div', { style: { fontSize: 12, color: '#909399', marginBottom: 24 } }, section.note),
+          h('div', { style: { textAlign: 'center', padding: '16px 0 28px' } },
+            h('div', { style: { width: 96, height: 64, margin: '0 auto 12px', background: '#F5F4F5', borderRadius: 6, position: 'relative' } },
+              h('div', { style: { position: 'absolute', left: 20, top: 14, width: 12, height: 12, borderRadius: '50%', background: '#1E75FF' } }),
+              h('div', { style: { position: 'absolute', left: 14, top: 28, width: 24, height: 32, borderRadius: 4, background: '#1E75FF' } })),
+            h('div', { style: { fontWeight: 600, marginBottom: 4 } }, section.emptyTitle || '暂无数据'),
+            h('div', { style: { fontSize: 12, color: '#909399', marginBottom: 8 } }, section.emptyHint),
+            h(Button, { type: 'link', size: 'small', onClick: () => message.info(`${section.emptyActionLabel || '立即处理'}已触发`) }, section.emptyActionLabel || '立即处理')));
+      }
+      if (section.type === 'table') {
+        const rows = row[section.rowsSource] || [];
+        return h('section', { key: section.key, className: 'ea-module', style: moduleStyle },
+          heading(section.title, section.actions),
+          h(Table, {
+            rowKey: section.rowKey || 'id', dataSource: rows, pagination: false, size: 'middle',
+            columns: (section.columns || []).map((column) => column.key === 'actions'
+              ? { key: 'actions', title: column.label, render: () => h(Button, { type: 'link', size: 'small', danger: true, onClick: () => message.info('解绑已触发') }, column.actionLabel || '解绑') }
+              : { key: column.key, title: column.label, dataIndex: column.key })
+          }));
+      }
+      return null;
+    }
+
+    const pageDetailConfig = table.pageDetail;
+    if (view === 'page-detail' && detailPageRow && pageDetailConfig) {
+      const tabs = pageDetailConfig.tabs || [];
+      const activeKey = detailPageTab || tabs[0]?.key || '';
+      return h('div', { className: 'ea-page-content ea-page-detail' },
+        h('div', { className: 'ea-page-form-heading', style: { display: 'flex', alignItems: 'center', gap: 16 } },
+          h(Button, { type: 'text', className: 'ea-page-form-back', icon: h(ArrowLeftOutlined), onClick: () => setView('list') }, pageDetailConfig.backLabel || '返回'),
+          tabs.length ? h(Tabs, {
+            activeKey, size: 'small',
+            items: tabs.map((tab) => ({ key: tab.key, label: tab.label })),
+            onChange: setDetailPageTab,
+            style: { flex: 1 }
+          }) : null),
+        activeKey === tabs[0]?.key || !tabs.length
+          ? (pageDetailConfig.sections || []).map((section) => renderDetailSection(section, detailPageRow))
+          : h('div', { className: 'ea-module', style: { padding: 48, textAlign: 'center', color: '#909399' } }, '暂无流水信息'));
+    }
 
     const pageFormConfig = view === 'row-page-form' ? rowPageAction?.form : createConfig;
     const pageFormSubmit = pageFormConfig?.submit || {};
