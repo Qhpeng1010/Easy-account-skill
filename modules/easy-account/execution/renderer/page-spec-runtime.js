@@ -182,6 +182,12 @@
     return {};
   }
 
+  function resolveByField(spec, values) {
+    if (!spec || !spec.field) return null;
+    const current = fieldValue(values, spec.field);
+    return spec.map?.[String(current)] ?? spec.fallback ?? null;
+  }
+
   function renderDisplayField(field, sourceRow, itemProps = {}) {
     const lineValue = (part) => {
       if (part && typeof part === 'object' && 'source' in part) return String(sourceRow?.[part.source] ?? '-');
@@ -223,7 +229,7 @@
         ...itemProps,
         ...fieldBinding(field),
         key: field.key,
-        label: field.label,
+        label: resolveByField(field.labelBy, values) || field.label,
         name: field.key,
         preserve: field.preserve !== false,
         rules: formRules(field, values)
@@ -930,14 +936,18 @@
           scrollToFirstError: true
         },
         h('div', { className: 'ea-page-form-groups' },
-          ...(pageFormConfig.groups || []).map((group) => h('section', { key: group.key, className: 'ea-module ea-page-form-group', 'aria-labelledby': `group-${group.key}` },
-            h('h2', { id: `group-${group.key}` }, group.title),
-            group.description ? h('p', { className: 'ea-page-form-group-description' }, group.description) : null,
-            ...(group.fields || []).map((field) => renderField(createForm, field, `form-${field.key}`, { extra: field.help }, view === 'row-page-form' ? rowPageAction?.row : null))))),
+          ...(pageFormConfig.groups || []).map((group) => h(Form.Item, { key: `watch-group-${group.key}`, noStyle: true, shouldUpdate: true }, () => {
+            const values = createForm.getFieldsValue(true);
+            if (group.visibleWhen && !conditionMatches(group.visibleWhen, values)) return null;
+            return h('section', { key: group.key, className: 'ea-module ea-page-form-group', 'aria-labelledby': `group-${group.key}` },
+              h('h2', { id: `group-${group.key}` }, group.title),
+              group.description ? h('p', { className: 'ea-page-form-group-description' }, group.description) : null,
+              ...(group.fields || []).map((field) => renderField(createForm, field, `form-${field.key}`, { extra: field.help }, view === 'row-page-form' ? rowPageAction?.row : null)));
+          }))),
         h('div', { className: 'ea-page-form-sticky-actions' },
           h('div', { className: 'ea-page-form-action-inner' },
             h(Button, { disabled: creating, onClick: pageFormSubmit.secondaryAction === 'reset' ? () => createForm.resetFields() : requestLeaveCreate }, pageFormSubmit.secondaryLabel || '取消'),
-            h(Button, { type: 'primary', loading: creating, htmlType: 'submit' }, pageFormSubmit.primaryLabel)))));
+            h(Form.Item, { noStyle: true, shouldUpdate: true }, () => h(Button, { type: 'primary', loading: creating, htmlType: 'submit' }, resolveByField(pageFormSubmit.primaryLabelBy, createForm.getFieldsValue(true)) || pageFormSubmit.primaryLabel))))));
     }
 
     return h('div', { className: 'ea-page-content ea-list-page' },
