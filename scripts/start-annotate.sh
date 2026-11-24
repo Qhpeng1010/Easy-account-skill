@@ -1,5 +1,5 @@
 #!/bin/bash
-# easy-account start-annotate.sh — 启动预览划词批注服务
+# page-preview start-annotate.sh — 启动预览划词批注服务
 # Usage: start-annotate.sh <change目录>/preview.html [start_port]
 # Output: "OK <port> <pid>" (new) | "REUSED <port> <pid>" (existing) | "FAIL <reason>"
 
@@ -26,7 +26,7 @@ FILE_BASENAME="$(basename "$HTML_FILE")"
 # ── Step 1: 扫描运行中的服务，同一 preview 复用 ──
 EXISTING_PORT=""
 for p in $(seq $BASE_PORT $MAX_PORT); do
-  LOG="/tmp/easy-account-annotate-$p.log"
+  LOG="/tmp/page-preview-annotate-$p.log"
   if lsof -i :$p > /dev/null 2>&1; then
     if [ -f "$LOG" ] && { grep -qF "$HTML_FILE" "$LOG" 2>/dev/null || grep -qF "$FILE_BASENAME" "$LOG" 2>/dev/null; }; then
       EXISTING_PORT=$p
@@ -73,7 +73,7 @@ PY_BIN="$(command -v python3 2>/dev/null)"
 [ ! -f "$SERVER_JS" ] && { echo "FAIL: annotate-preview-server.js not found at $SERVER_JS"; exit 1; }
 
 # ── Step 4: 脱离进程启动 ──
-LOG_FILE="/tmp/easy-account-annotate-$PORT.log"
+LOG_FILE="/tmp/page-preview-annotate-$PORT.log"
 "$PY_BIN" -c "
 import subprocess
 p = subprocess.Popen(
@@ -83,8 +83,8 @@ p = subprocess.Popen(
     start_new_session=True
 )
 print(p.pid)
-" > /tmp/easy-account-annotate-pid.txt
-PID=$(cat /tmp/easy-account-annotate-pid.txt)
+" > /tmp/page-preview-annotate-pid.txt
+PID=$(cat /tmp/page-preview-annotate-pid.txt)
 
 # ── Step 5: 等待就绪 ──
 for i in 1 2 3 4 5; do

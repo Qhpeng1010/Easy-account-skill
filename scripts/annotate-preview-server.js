@@ -1,5 +1,5 @@
 /**
- * easy-account annotate-preview-server — 易账通预览页划词批注服务
+ * page-preview annotate-server — 页面预览划词批注服务
  *
  * 用法:
  *   node annotate-preview-server.js <change目录>/preview.html [--port <端口号>]
@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 
 function printUsage() {
-  console.log('easy-account annotate-preview-server');
+  console.log('page-preview annotate-server');
   console.log('用法: node annotate-preview-server.js <preview.html 路径> [--port <端口号>]');
   process.exit(1);
 }
@@ -544,7 +544,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(CONFIG.port, '127.0.0.1', () => {
   console.log('==========================================');
-  console.log('  easy-account annotate-preview-server');
+  console.log('  page-preview annotate-server');
   console.log('  预览: ' + CONFIG.htmlPath);
   console.log('  地址: http://127.0.0.1:' + CONFIG.port);
   console.log('  批注: ' + COMMENTS_FILE);
