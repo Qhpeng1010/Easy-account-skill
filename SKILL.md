@@ -77,6 +77,16 @@ description: 为易账通（同义名称：Yee账通、yee账通、Easy Account�
 - 页面族上下文：`modules/easy-account/execution/context-packs/`
 - 固定渲染器与壳层：`modules/easy-account/execution/renderer/`、`modules/easy-account/shell/`
 
+## 划词批注修改工作流（本机扩展）
+
+在预览页面上划词提修改意见，AI 根据批注修改 `page-spec.json` 后重建。批注机制参考 doc-annotate 技能，服务实现为本技能专属（SPA 场景，含静态资源服务）。
+
+1. **启动批注服务**：`bash scripts/start-annotate.sh changes/{change-id}/preview.html`，输出 `OK <port> <pid>` 后用 `present_files` 展示 `http://127.0.0.1:<port>`。注意：在受限执行环境内启动时，必须用后台任务方式直接运行 `node scripts/annotate-preview-server.js <preview.html> --port <port>`（start.sh 的脱离进程方式会因执行上下文关闭而失败）。
+2. **用户操作**：划选页面文字 → 点「添加批注」→ 写修改意见 → 保存；右下角「批注」徽标打开批注列表，点条目可定位原文。
+3. **批注存储**：`changes/{change-id}/.preview.html.comments.json`，字段 `{ id, text, comment, timestamp, resolved, page }`；重建预览不清空批注。
+4. **AI 处理循环**：读批注文件获取未处理条目 → 逐条理解意图并修改 `page-spec.json`（唯一编辑源）→ 运行构建脚本 → 将已处理批注标记 `resolved: true` → 向用户汇报每条批注的处理结果；有歧义的批注先询问，不猜。
+5. **边界**：批注只驱动 `page-spec.json` 修改，不手改派生产物；涉及 Shell 菜单/导航的批注改 `shell.primaryNav` / `shell.sideNav`；能力缺口类批注如实报告，不绕过策略。
+
 ## 失败处理
 
 - 页面家族处于 `pending`、`workflow-only` 或 `legacy` 时，报告能力缺口，不绕过策略生成候选页面。
